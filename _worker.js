@@ -6,6 +6,8 @@ const AUTH_TOKEN = 'zwaV2TuGRumDt3mX6AIcVrPQNboM09px';
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' };
 
 function round(n, d = 1) { return Math.round(n * Math.pow(10, d)) / Math.pow(10, d); }
+function parseUTC(ts) { return new Date(ts.endsWith('Z') ? ts : ts.replace(' ', 'T') + 'Z'); }
+function fmtDate(ts) { const d = parseUTC(ts); const tz = 'America/New_York'; return d.toLocaleDateString('en-US', {month:'short',day:'numeric',timeZone:tz}) + ' ' + d.toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit',timeZone:tz}); }
 function json(data, status = 200) { return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...cors } }); }
 function requireAuth(request) { return request.headers.get('Authorization') === `Bearer ${AUTH_TOKEN}`; }
 
@@ -251,30 +253,38 @@ async function calculateMetrics(db) {
   if (weights.length >= 2) {
     const first = weights[weights.length - 1];
     const last = weights[0];
-    const daysDiff = (new Date(last.logged_at) - new Date(first.logged_at)) / 86400000;
+    const daysDiff = (parseUTC(last.logged_at) - parseUTC(first.logged_at)) / 86400000;
     if (daysDiff > 0) velocity = (last.weight_lbs - first.weight_lbs) / daysDiff;
     const weekAgo = new Date(now - 7 * 86400000);
-    const recentWeights = weights.filter(w => new Date(w.logged_at) > weekAgo);
+    const recentWeights = weights.filter(w => parseUTC(w.logged_at) > weekAgo);
     if (recentWeights.length >= 2) {
       const rf = recentWeights[recentWeights.length - 1];
       const rl = recentWeights[0];
-      const rd = (new Date(rl.logged_at) - new Date(rf.logged_at)) / 86400000;
+      const rd = (parseUTC(rl.logged_at) - parseUTC(rf.logged_at)) / 86400000;
       if (rd > 0) velocity7d = (rl.weight_lbs - rf.weight_lbs) / rd;
     }
     acceleration = velocity - velocity7d;
   }
 
-  // Today's calories
-  const todayStart = new Date(); todayStart.setUTCHours(0, 0, 0, 0);
-  const todayIntake = intake.filter(i => new Date(i.logged_at) >= todayStart);
-  const todayExercise = exercise.filter(e => new Date(e.logged_at) >= todayStart);
+  // Today's calories (Eastern Time with DST detection)
+  const etDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date()); // YYYY-MM-DD  
+  const [y, m, d] = etDateStr.split('-').map(Number);
+  // Detect DST by checking if we're between 2nd Sunday of March and 1st Sunday of November
+  const mar2ndSun = new Date(Date.UTC(y, 2, 8 + (7 - new Date(Date.UTC(y, 2, 8)).getUTCDay()) % 7, 7)); // 2am ET = 7am UTC
+  const nov1stSun = new Date(Date.UTC(y, 10, 1 + (7 - new Date(Date.UTC(y, 10, 1)).getUTCDay()) % 7, 6)); // 2am ET = 6am UTC (already EDT)
+  const nowUTC = new Date();
+  const isDST = nowUTC >= mar2ndSun && nowUTC < nov1stSun;
+  const etOffsetHours = isDST ? 4 : 5;
+  const todayStartUTC = new Date(Date.UTC(y, m - 1, d, etOffsetHours, 0, 0));
+  const todayIntake = intake.filter(i => parseUTC(i.logged_at) >= todayStartUTC);
+  const todayExercise = exercise.filter(e => parseUTC(e.logged_at) >= todayStartUTC);
   const caloriesIn = todayIntake.reduce((s, i) => s + (i.calories || 0), 0);
   const proteinIn = todayIntake.reduce((s, i) => s + (i.protein_g || 0), 0);
   const carbsIn = todayIntake.reduce((s, i) => s + (i.carbs_g || 0), 0);
   const fatIn = todayIntake.reduce((s, i) => s + (i.fat_g || 0), 0);
   const exerciseBurn = todayExercise.reduce((s, e) => s + (e.calories_burned || 0), 0);
 
-  const hoursSinceMidnight = (now - todayStart.getTime()) / 3600000;
+  const hoursSinceMidnight = (now - todayStartUTC.getTime()) / 3600000;
   const tdeeBurnedSoFar = Math.round((hoursSinceMidnight / 24) * TDEE);
   const totalBurned = tdeeBurnedSoFar + exerciseBurn;
   const netCalories = caloriesIn - totalBurned;
@@ -517,7 +527,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
     <div class="section-title">Recent Intake</div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
       <table><thead><tr><th>Time</th><th>Cal</th><th>P</th><th>C</th><th>F</th><th>Description</th></tr></thead><tbody>
-      ${data.intake.slice(0, 10).map(i => `<tr><td>${new Date(i.logged_at).toLocaleDateString('en-US', {month:'short',day:'numeric'})} ${new Date(i.logged_at).toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit'})}</td><td class="mono">${i.calories}</td><td class="mono">${i.protein_g || '-'}</td><td class="mono">${i.carbs_g || '-'}</td><td class="mono">${i.fat_g || '-'}</td><td class="desc">${i.description || '-'}</td></tr>`).join('')}
+      ${data.intake.slice(0, 10).map(i => `<tr><td>${fmtDate(i.logged_at)}</td><td class="mono">${i.calories}</td><td class="mono">${i.protein_g || '-'}</td><td class="mono">${i.carbs_g || '-'}</td><td class="mono">${i.fat_g || '-'}</td><td class="desc">${i.description || '-'}</td></tr>`).join('')}
       </tbody></table>
     </div>
   </div>
@@ -525,7 +535,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
     <div class="section-title">Recent Exercise</div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
       <table><thead><tr><th>Time</th><th>Type</th><th>Min</th><th>Cal</th><th>Dist</th><th>Max HR</th><th>Notes</th></tr></thead><tbody>
-      ${data.exercise.slice(0, 5).map(e => `<tr><td>${new Date(e.logged_at).toLocaleDateString('en-US', {month:'short',day:'numeric'})} ${new Date(e.logged_at).toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit'})}</td><td>${e.type}</td><td class="mono">${e.duration_min || '-'}</td><td class="mono">${e.calories_burned || '-'}</td><td class="mono">${e.distance_miles ? e.distance_miles.toFixed(2) + 'mi' : '-'}</td><td class="mono">${e.max_hr || '-'}</td><td class="desc">${e.notes || '-'}</td></tr>`).join('')}
+      ${data.exercise.slice(0, 5).map(e => `<tr><td>${fmtDate(e.logged_at)}</td><td>${e.type}</td><td class="mono">${e.duration_min || '-'}</td><td class="mono">${e.calories_burned || '-'}</td><td class="mono">${e.distance_miles ? e.distance_miles.toFixed(2) + 'mi' : '-'}</td><td class="mono">${e.max_hr || '-'}</td><td class="desc">${e.notes || '-'}</td></tr>`).join('')}
       </tbody></table>
     </div>
   </div>
@@ -533,7 +543,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
     <div class="section-title">Weigh-ins</div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
       <table><thead><tr><th>ID</th><th>Weight</th><th>Time</th></tr></thead><tbody>
-      ${data.weights.slice(0, 5).map(w => `<tr><td class="mono">#${w.id}</td><td class="mono">${w.weight_lbs} lbs</td><td>${new Date(w.logged_at).toLocaleDateString('en-US', {month:'short',day:'numeric'})} ${new Date(w.logged_at).toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit'})}</td></tr>`).join('')}
+      ${data.weights.slice(0, 5).map(w => `<tr><td class="mono">#${w.id}</td><td class="mono">${w.weight_lbs} lbs</td><td>${fmtDate(w.logged_at)}</td></tr>`).join('')}
       </tbody></table>
     </div>
   </div>
