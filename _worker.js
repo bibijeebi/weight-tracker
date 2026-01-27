@@ -455,9 +455,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .vo2-card::before{content:'';position:absolute;top:0;right:0;width:80px;height:80px;background:radial-gradient(circle at top right,rgba(16,185,129,0.15),transparent 70%);pointer-events:none}
 .vo2-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .vo2-label{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)}
-.vo2-category{font-size:12px;font-weight:600;padding:4px 10px;border-radius:12px;background:rgba(16,185,129,0.15)}
+.vo2-category{font-size:11px;font-weight:600;padding:4px 10px;border-radius:12px;background:rgba(16,185,129,0.15)}
 .vo2-value{font-family:'JetBrains Mono',monospace;font-size:42px;font-weight:700;margin-top:4px}
 .vo2-detail{font-size:11px;color:var(--text-muted);margin-top:4px}
+@media(max-width:900px){.vo2-card{padding:12px}.vo2-value{font-size:36px}.vo2-detail{font-size:10px}}
 main{padding:24px;overflow-y:auto}
 @media(max-width:900px){main{padding:16px}}
 .section{margin-bottom:24px}
@@ -483,7 +484,7 @@ main{padding:24px;overflow-y:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border)}
 th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);background:var(--surface)}
-@media(max-width:900px){th,td{padding:8px 6px;font-size:12px}th{font-size:10px}.desc{max-width:120px}}
+@media(max-width:900px){th,td{padding:8px 6px;font-size:12px}th{font-size:10px}.desc{max-width:120px}td:first-child{white-space:nowrap;font-size:11px}}
 .mono{font-family:'JetBrains Mono',monospace}
 .desc{color:var(--text-secondary);max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .skeleton{background:linear-gradient(90deg,var(--card) 25%,var(--border) 50%,var(--card) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px}
@@ -562,7 +563,15 @@ const CACHE_TTL = 60000; // 1 minute
 const TZ = 'America/New_York';
 
 function parseUTC(ts) { return new Date(ts.endsWith && ts.endsWith('Z') ? ts : (ts.includes('T') ? ts + 'Z' : ts.replace(' ', 'T') + 'Z')); }
-function fmtDate(ts) { const d = parseUTC(ts); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:TZ})+' '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:TZ}); }
+function fmtDate(ts) { 
+  const d = parseUTC(ts); 
+  const now = new Date();
+  const isToday = d.toLocaleDateString('en-CA',{timeZone:TZ}) === now.toLocaleDateString('en-CA',{timeZone:TZ});
+  const time = d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:TZ}).replace(' ','').toLowerCase();
+  if (isToday) return time;
+  const date = (d.getMonth()+1)+'/'+d.getDate();
+  return date+' '+time;
+}
 function round(n, d=1) { return Math.round(n * Math.pow(10,d)) / Math.pow(10,d); }
 
 let showMlbs = false;
