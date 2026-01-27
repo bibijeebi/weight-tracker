@@ -352,14 +352,44 @@ async function calculateMetrics(db) {
     weights: weights,
     intake: intake.slice(0, 20),
     exercise: exercise.slice(0, 10),
+    daily_net: calculateDailyNet(intake, exercise, TDEE),
   };
 }
 
-async function serveDashboard(env) {
-  const data = await calculateMetrics(env.DB);
-  const isLosing = data.velocity_lbs_day < 0;
-  const accelGood = data.acceleration < 0;
+function calculateDailyNet(intake, exercise, tdee) {
+  const days = {};
+  const tz = 'America/New_York';
+  
+  // Group intake by day (ET)
+  intake.forEach(i => {
+    const d = parseUTC(i.logged_at);
+    const dateStr = d.toLocaleDateString('en-CA', { timeZone: tz });
+    if (!days[dateStr]) days[dateStr] = { calories_in: 0, exercise_burn: 0 };
+    days[dateStr].calories_in += i.calories || 0;
+  });
+  
+  // Group exercise by day (ET)
+  exercise.forEach(e => {
+    const d = parseUTC(e.logged_at);
+    const dateStr = d.toLocaleDateString('en-CA', { timeZone: tz });
+    if (!days[dateStr]) days[dateStr] = { calories_in: 0, exercise_burn: 0 };
+    days[dateStr].exercise_burn += e.calories_burned || 0;
+  });
+  
+  // Generate last 14 days
+  const result = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toLocaleDateString('en-CA', { timeZone: tz });
+    const dayData = days[dateStr] || { calories_in: 0, exercise_burn: 0 };
+    const net = dayData.calories_in - tdee - dayData.exercise_burn;
+    result.push({ date: dateStr, net: Math.round(net), calories_in: dayData.calories_in, exercise_burn: dayData.exercise_burn });
+  }
+  return result;
+}
 
+async function serveDashboard(env) {
   const html = `<!DOCTYPE html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Weight Tracker - Operation 210</title>
@@ -381,7 +411,7 @@ async function serveDashboard(env) {
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
 .layout{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
-@media(max-width:900px){.layout{grid-template-columns:1fr}}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.sidebar{border-right:none;border-bottom:1px solid var(--border)}}
 .sidebar{background:var(--surface);border-right:1px solid var(--border);padding:20px;display:flex;flex-direction:column;gap:16px}
 .header{display:flex;align-items:center;justify-content:space-between}
 .brand{display:flex;align-items:center;gap:10px}
@@ -400,155 +430,272 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .velocity-label{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)}
 .velocity-toggle{font-size:10px;padding:4px 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer}
 .velocity-main{display:flex;align-items:baseline;gap:8px}
-.velocity-value{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:600}
-.velocity-value.losing{color:var(--emerald)}
-.velocity-value.gaining{color:var(--rose)}
-.velocity-unit{font-size:13px;color:var(--text-muted)}
-.velocity-extra{display:flex;gap:16px;margin-top:8px;font-size:12px;color:var(--text-muted)}
-.velocity-extra strong{color:var(--text-secondary)}
-.accel-card{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px}
-.accel-card.good{border-color:rgba(16,185,129,0.3);background:linear-gradient(135deg,rgba(16,185,129,0.08),transparent)}
-.accel-card.bad{border-color:rgba(244,63,94,0.3);background:linear-gradient(135deg,rgba(244,63,94,0.08),transparent)}
+.velocity-arrow{font-size:20px}
+.velocity-value{font-family:'JetBrains Mono',monospace;font-size:36px;font-weight:600}
+.velocity-unit{font-size:14px;color:var(--text-muted)}
+.velocity-sub{display:flex;gap:12px;margin-top:8px;font-size:12px;color:var(--text-muted)}
+.accel-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px}
 .accel-icon{font-size:18px}
-.accel-label{font-size:10px;color:var(--text-muted)}
+.accel-label{font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted)}
 .accel-value{font-family:'JetBrains Mono',monospace;font-size:13px}
-.accel-card.good .accel-value{color:var(--emerald)}
-.accel-card.bad .accel-value{color:var(--rose)}
-.stats{display:flex;flex-direction:column;gap:6px}
-.stat{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:13px}
-.stat-label{color:var(--text-secondary)}
-.stat-value{font-family:'JetBrains Mono',monospace;font-weight:500}
-.emerald{color:var(--emerald)}.rose{color:var(--rose)}.cyan{color:var(--cyan)}.amber{color:var(--amber)}
-.macros{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.macro{text-align:center;padding:12px 8px;background:var(--card);border:1px solid var(--border);border-radius:10px}
-.macro-value{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600}
-.macro-label{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)}
-.vo2-card,.bf-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px}
-.vo2-header,.bf-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-.vo2-label,.bf-label{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)}
-.vo2-value{font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:600}
-.vo2-sub,.bf-sub{font-size:11px;color:var(--text-muted);margin-top:2px}
-.bf-main{display:flex;align-items:center;gap:16px}
-.bf-value{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:600}
-.bf-breakdown{font-size:12px;color:var(--text-muted)}
-.bf-breakdown div{margin:2px 0}
-.bf-num{color:var(--text-secondary);font-weight:500}
-.progress-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px}
-.progress-header{display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px}
-.progress-bar{height:6px;background:var(--surface);border-radius:3px;overflow:hidden}
-.progress-fill{height:100%;background:linear-gradient(90deg,var(--emerald),var(--cyan));border-radius:3px}
-.tdee-card{font-size:12px;color:var(--text-muted);padding:12px;background:var(--card);border:1px solid var(--border);border-radius:10px}
-.tdee-card strong{color:var(--amber)}
-.main{padding:20px;overflow-y:auto}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.stat-row:last-child{border-bottom:none}
+.stat-label{font-size:13px;color:var(--text-secondary)}
+.stat-value{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:500}
+.stat-value.positive{color:var(--emerald)}
+.stat-value.negative{color:var(--rose)}
+.macros{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 0}
+.macro{text-align:center}
+.macro-value{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600}
+.macro-label{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-top:2px}
+.vo2-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+.vo2-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.vo2-label{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)}
+.vo2-category{font-size:12px;font-weight:500}
+.vo2-value{font-family:'JetBrains Mono',monospace;font-size:42px;font-weight:600}
+main{padding:24px;overflow-y:auto}
 .section{margin-bottom:24px}
-.section-title{font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:12px}
-.op210{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-@media(max-width:700px){.op210{grid-template-columns:repeat(2,1fr)}}
-.op210-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
-.op210-label{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:4px}
-.op210-value{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:600}
-.op210-sub{font-size:11px;color:var(--text-muted);margin-top:2px}
+.section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:12px}
+.op-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:1200px){.op-grid{grid-template-columns:repeat(2,1fr)}}
+.op-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
+.op-card-label{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:8px}
+.op-card-value{font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:700}
+.op-card-sub{font-size:11px;color:var(--text-muted);margin-top:4px}
 .charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
-@media(max-width:700px){.charts{grid-template-columns:1fr}}
+@media(max-width:900px){.charts{grid-template-columns:1fr}}
 .chart-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
 .chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .chart-title{font-size:13px;font-weight:500}
 .chart-badge{font-size:10px;padding:4px 8px;background:var(--surface);border-radius:6px;color:var(--text-muted)}
-.chart{height:120px;display:flex;align-items:flex-end;gap:4px}
-.bar{flex:1;border-radius:4px 4px 0 0;min-height:4px;transition:all 0.2s}
-.bar:hover{filter:brightness(1.2)}
-.bar.weight{background:linear-gradient(to top,var(--cyan),var(--emerald))}
-.bar.deficit{background:var(--emerald)}
-.bar.surplus{background:var(--rose)}
-table{width:100%;font-size:12px;border-collapse:collapse}
-th{text-align:left;padding:8px 10px;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);border-bottom:1px solid var(--border);font-weight:500}
-td{padding:8px 10px;border-bottom:1px solid var(--border)}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:rgba(255,255,255,0.02)}
+.chart{display:flex;align-items:flex-end;gap:4px;height:80px}
+.bar{flex:1;border-radius:3px 3px 0 0;min-width:8px;transition:height 0.3s}
+.bar.surplus{background:linear-gradient(to top,var(--rose),#fb7185)}
+.bar.deficit{background:linear-gradient(to top,var(--emerald),#34d399)}
+.bar.weight{background:linear-gradient(to top,var(--cyan),var(--blue))}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border)}
+th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);background:var(--surface)}
 .mono{font-family:'JetBrains Mono',monospace}
-.desc{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted)}
-</style></head>
+.desc{color:var(--text-secondary);max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.skeleton{background:linear-gradient(90deg,var(--card) 25%,var(--border) 50%,var(--card) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skeleton-text{height:1em;width:60%}
+.skeleton-number{height:48px;width:80%}
+.loading-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;opacity:0;pointer-events:none;transition:opacity 0.3s}
+.loading-overlay.visible{opacity:1;pointer-events:auto}
+</style>
+</head>
 <body>
 <div class="layout">
-<aside class="sidebar">
-  <div class="header">
-    <div class="brand"><div class="brand-icon">W</div><span class="brand-text">Weight Tracker</span></div>
-    <div class="live"><div class="live-dot"></div>Live</div>
-  </div>
-  <div class="hero">
-    <div class="hero-label">Interpolated Weight</div>
-    <div class="hero-weight">${data.interpolated_weight}</div>
-    <div class="hero-sub">Last weigh-in: <strong>${data.current_weight} lbs</strong> · Trend: <strong>${data.trend_weight || data.current_weight}</strong></div>
-  </div>
-  <div class="velocity-card">
-    <div class="velocity-header"><span class="velocity-label">Velocity</span><button class="velocity-toggle">mlbs ↔ lbs</button></div>
-    <div class="velocity-main">
-      <span class="velocity-value ${isLosing ? 'losing' : 'gaining'}">${isLosing ? '↓' : '↑'} ${Math.abs(data.velocity_lbs_day).toFixed(3)}</span>
-      <span class="velocity-unit">lbs/day</span>
+  <aside class="sidebar">
+    <div class="header">
+      <div class="brand"><div class="brand-icon">W</div><span class="brand-text">Weight Tracker</span></div>
+      <div class="live"><span class="live-dot"></span>Live</div>
     </div>
-    <div class="velocity-extra"><div><strong>${data.mlbs_per_hr}</strong> mlbs/hr</div><div><strong>${(data.velocity_lbs_day * 7).toFixed(2)}</strong> lbs/wk</div></div>
-  </div>
-  <div class="accel-card ${accelGood ? 'good' : 'bad'}">
-    <div class="accel-icon">${accelGood ? '🚀' : '⏸'}</div>
-    <div><div class="accel-label">Acceleration vs 7d avg</div><div class="accel-value">${accelGood ? 'Faster' : 'Slower'}: ${data.acceleration > 0 ? '+' : ''}${data.acceleration.toFixed(4)} lbs/day²</div></div>
-  </div>
-  <div class="stats">
-    <div class="stat"><span class="stat-label">Calories In</span><span class="stat-value">${data.calories_in}</span></div>
-    <div class="stat"><span class="stat-label">Burned</span><span class="stat-value emerald">${data.exercise_burn + Math.round((data.hours_elapsed / 24) * data.tdee)}</span></div>
-    <div class="stat"><span class="stat-label">Net</span><span class="stat-value ${data.net_calories < 0 ? 'emerald' : 'rose'}">${data.net_calories > 0 ? '+' : ''}${data.net_calories}</span></div>
-    <div class="stat"><span class="stat-label">Runway</span><span class="stat-value amber">${data.runway}</span></div>
-    <div class="stat"><span class="stat-label">Op 210</span><span class="stat-value cyan">${data.phase} Phase</span></div>
-  </div>
-  <div class="macros">
-    <div class="macro"><div class="macro-value">${data.protein_g}g</div><div class="macro-label">Protein</div></div>
-    <div class="macro"><div class="macro-value">${data.carbs_g}g</div><div class="macro-label">Carbs</div></div>
-    <div class="macro"><div class="macro-value">${data.fat_g}g</div><div class="macro-label">Fat</div></div>
-  </div>
-  ${data.vo2max ? `<div class="vo2-card"><div class="vo2-header"><span class="vo2-label">VO₂ Max</span><span style="color:${data.vo2_color};font-size:12px;font-weight:500">${data.vo2_category}</span></div><div class="vo2-value">${data.vo2max}</div><div class="vo2-sub">ml/kg/min · HR ${data.resting_hr}/${data.max_hr}</div></div>` : ''}
-  ${data.body_fat_pct ? `<div class="bf-card"><div class="bf-header"><span class="bf-label">Body Composition</span><span style="color:${data.body_fat_pct > 24 ? 'var(--rose)' : data.body_fat_pct > 18 ? 'var(--amber)' : 'var(--emerald)'};font-size:12px;font-weight:500">${data.body_fat_pct}% BF</span></div><div class="bf-main"><div><div style="font-size:11px;color:var(--text-muted)">Lean <span class="bf-num">${data.lean_mass}</span> → ${data.goal_lean}</div><div style="font-size:11px;color:var(--text-muted)">Fat <span class="bf-num">${data.fat_mass}</span> → ${data.goal_fat}</div></div><div style="margin-left:auto;text-align:right"><div class="cyan" style="font-size:13px;font-weight:500">+${data.lean_delta}</div><div class="rose" style="font-size:13px;font-weight:500">-${data.fat_delta}</div></div></div><div class="bf-sub">Navy · ${data.neck_in}"/${data.waist_in}" · Goal: ${data.goal_bf_pct}% BF @ 210</div></div>` : ''}
-  <div class="progress-card"><div class="progress-header"><span>Day Progress</span><span>${data.hours_elapsed}h / 24h</span></div><div class="progress-bar"><div class="progress-fill" style="width:${(data.hours_elapsed / 24 * 100).toFixed(1)}%"></div></div></div>
-  <div class="tdee-card"><div>TDEE: <strong>${data.tdee}</strong></div><div style="margin-top:4px">7d avg: ${data.velocity_7d.toFixed(3)} lbs/day</div></div>
-</aside>
-<main class="main">
-  <div class="section">
-    <div class="section-title">Operation 210 Status</div>
-    <div class="op210">
-      <div class="op210-card"><div class="op210-label">Current</div><div class="op210-value">${data.current_weight}</div><div class="op210-sub">lbs @ ${data.body_fat_pct || '?'}% BF</div></div>
-      <div class="op210-card"><div class="op210-label">Lean to Gain</div><div class="op210-value cyan">${data.lean_delta ? '+' + data.lean_delta : '?'}</div><div class="op210-sub">${data.lean_mass || '?'} → ${data.goal_lean} lbs</div></div>
-      <div class="op210-card"><div class="op210-label">Fat to Lose</div><div class="op210-value rose">${data.fat_delta ? '-' + data.fat_delta : '?'}</div><div class="op210-sub">${data.fat_mass || '?'} → ${data.goal_fat} lbs</div></div>
-      <div class="op210-card"><div class="op210-label">Target</div><div class="op210-value amber">210</div><div class="op210-sub">@ ${data.goal_bf_pct}% BF</div></div>
+    <div class="hero">
+      <div class="hero-label">Interpolated Weight</div>
+      <div class="hero-weight" id="interpolated">---</div>
+      <div class="hero-sub">Last weigh-in: <strong id="last-weight">--</strong> · Trend: <span id="trend-weight">--</span></div>
     </div>
-  </div>
-  <div class="charts">
-    <div class="chart-card"><div class="chart-header"><span class="chart-title">Weight History</span><span class="chart-badge">${data.weights.length} entries</span></div><div class="chart">${data.weights.slice(0, 14).reverse().map(w => {const pct = ((w.weight_lbs - 190) / 30) * 100; return `<div class="bar weight" style="height:${Math.max(10, Math.min(100, pct))}%" title="${w.weight_lbs} lbs"></div>`;}).join('')}</div></div>
-    <div class="chart-card"><div class="chart-header"><span class="chart-title">Daily Net</span><span class="chart-badge">14 days</span></div><div class="chart">${Array(14).fill(0).map((_, i) => {const h = 30 + Math.random() * 40; const isDeficit = Math.random() > 0.4; return `<div class="bar ${isDeficit ? 'deficit' : 'surplus'}" style="height:${h}%"></div>`;}).join('')}</div></div>
-  </div>
-  <div class="section">
-    <div class="section-title">Recent Intake</div>
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-      <table><thead><tr><th>Time</th><th>Cal</th><th>P</th><th>C</th><th>F</th><th>Description</th></tr></thead><tbody>
-      ${data.intake.slice(0, 10).map(i => `<tr><td>${fmtDate(i.logged_at)}</td><td class="mono">${i.calories}</td><td class="mono">${i.protein_g || '-'}</td><td class="mono">${i.carbs_g || '-'}</td><td class="mono">${i.fat_g || '-'}</td><td class="desc">${i.description || '-'}</td></tr>`).join('')}
-      </tbody></table>
+    <div class="velocity-card">
+      <div class="velocity-header"><span class="velocity-label">Velocity</span><span class="velocity-toggle" id="vel-toggle">mlbs ↔ lbs</span></div>
+      <div class="velocity-main"><span class="velocity-arrow" id="vel-arrow">↓</span><span class="velocity-value" id="vel-value">--</span><span class="velocity-unit" id="vel-unit">lbs/day</span></div>
+      <div class="velocity-sub"><span id="mlbs-hr">-- mlbs/hr</span><span id="lbs-wk">-- lbs/wk</span></div>
     </div>
-  </div>
-  <div class="section">
-    <div class="section-title">Recent Exercise</div>
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-      <table><thead><tr><th>Time</th><th>Type</th><th>Min</th><th>Cal</th><th>Dist</th><th>Max HR</th><th>Notes</th></tr></thead><tbody>
-      ${data.exercise.slice(0, 5).map(e => `<tr><td>${fmtDate(e.logged_at)}</td><td>${e.type}</td><td class="mono">${e.duration_min || '-'}</td><td class="mono">${e.calories_burned || '-'}</td><td class="mono">${e.distance_miles ? e.distance_miles.toFixed(2) + 'mi' : '-'}</td><td class="mono">${e.max_hr || '-'}</td><td class="desc">${e.notes || '-'}</td></tr>`).join('')}
-      </tbody></table>
+    <div class="accel-card"><span class="accel-icon" id="accel-icon">⏸</span><div><div class="accel-label">Acceleration vs 7d avg</div><div class="accel-value" id="accel-value">--</div></div></div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
+      <div class="stat-row"><span class="stat-label">Calories In</span><span class="stat-value" id="cal-in">--</span></div>
+      <div class="stat-row"><span class="stat-label">Burned</span><span class="stat-value positive" id="cal-burned">--</span></div>
+      <div class="stat-row"><span class="stat-label">Net</span><span class="stat-value" id="cal-net">--</span></div>
+      <div class="stat-row"><span class="stat-label">Runway</span><span class="stat-value positive" id="runway">--</span></div>
+      <div class="stat-row"><span class="stat-label">Op 210</span><span class="stat-value" id="op210-phase">--</span></div>
+      <div class="macros"><div class="macro"><div class="macro-value" id="protein">--</div><div class="macro-label">Protein</div></div><div class="macro"><div class="macro-value" id="carbs">--</div><div class="macro-label">Carbs</div></div><div class="macro"><div class="macro-value" id="fat">--</div><div class="macro-label">Fat</div></div></div>
     </div>
-  </div>
-  <div class="section">
-    <div class="section-title">Weigh-ins</div>
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-      <table><thead><tr><th>ID</th><th>Weight</th><th>Time</th></tr></thead><tbody>
-      ${data.weights.slice(0, 5).map(w => `<tr><td class="mono">#${w.id}</td><td class="mono">${w.weight_lbs} lbs</td><td>${fmtDate(w.logged_at)}</td></tr>`).join('')}
-      </tbody></table>
+    <div class="vo2-card">
+      <div class="vo2-header"><span class="vo2-label">VO₂ Max</span><span class="vo2-category" id="vo2-cat">--</span></div>
+      <div class="vo2-value" id="vo2-val">--</div>
     </div>
-  </div>
-</main>
+  </aside>
+  <main>
+    <div class="section"><div class="section-title">Operation 210 Status</div>
+      <div class="op-grid">
+        <div class="op-card"><div class="op-card-label">Current</div><div class="op-card-value" id="op-current">--</div><div class="op-card-sub" id="op-current-sub">--</div></div>
+        <div class="op-card"><div class="op-card-label">Lean to Gain</div><div class="op-card-value positive" id="op-lean">--</div><div class="op-card-sub" id="op-lean-sub">--</div></div>
+        <div class="op-card"><div class="op-card-label">Fat to Lose</div><div class="op-card-value negative" id="op-fat">--</div><div class="op-card-sub" id="op-fat-sub">--</div></div>
+        <div class="op-card" style="border-color:var(--emerald)"><div class="op-card-label">Target</div><div class="op-card-value" style="color:var(--emerald)" id="op-target">210</div><div class="op-card-sub">@ 18% BF</div></div>
+      </div>
+    </div>
+    <div class="charts">
+      <div class="chart-card"><div class="chart-header"><span class="chart-title">Weight History</span><span class="chart-badge" id="weight-badge">--</span></div><div class="chart" id="weight-chart"></div></div>
+      <div class="chart-card"><div class="chart-header"><span class="chart-title">Daily Net</span><span class="chart-badge">14 days</span></div><div class="chart" id="net-chart"></div></div>
+    </div>
+    <div class="section"><div class="section-title">Recent Intake</div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <table><thead><tr><th>Time</th><th>Cal</th><th>P</th><th>C</th><th>F</th><th>Description</th></tr></thead><tbody id="intake-table"><tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
+      </div>
+    </div>
+    <div class="section"><div class="section-title">Recent Exercise</div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <table><thead><tr><th>Time</th><th>Type</th><th>Min</th><th>Cal</th><th>Dist</th><th>Max HR</th><th>Notes</th></tr></thead><tbody id="exercise-table"><tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
+      </div>
+    </div>
+    <div class="section"><div class="section-title">Weigh-ins</div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <table><thead><tr><th>ID</th><th>Weight</th><th>Time</th></tr></thead><tbody id="weights-table"><tr><td colspan="3" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
+      </div>
+    </div>
+  </main>
 </div>
+<script>
+const CACHE_KEY = 'weight-tracker-cache';
+const CACHE_TTL = 60000; // 1 minute
+const TZ = 'America/New_York';
+
+function parseUTC(ts) { return new Date(ts.endsWith && ts.endsWith('Z') ? ts : (ts.includes('T') ? ts + 'Z' : ts.replace(' ', 'T') + 'Z')); }
+function fmtDate(ts) { const d = parseUTC(ts); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:TZ})+' '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:TZ}); }
+function round(n, d=1) { return Math.round(n * Math.pow(10,d)) / Math.pow(10,d); }
+
+let showMlbs = false;
+document.getElementById('vel-toggle').onclick = () => { showMlbs = !showMlbs; renderVelocity(window._data); };
+
+function renderVelocity(d) {
+  if (!d) return;
+  const isLosing = d.velocity_lbs_day < 0;
+  document.getElementById('vel-arrow').textContent = isLosing ? '↓' : '↑';
+  document.getElementById('vel-arrow').style.color = isLosing ? 'var(--emerald)' : 'var(--rose)';
+  document.getElementById('vel-value').style.color = isLosing ? 'var(--emerald)' : 'var(--rose)';
+  if (showMlbs) {
+    document.getElementById('vel-value').textContent = Math.abs(round(d.mlbs_per_hr, 0));
+    document.getElementById('vel-unit').textContent = 'mlbs/hr';
+  } else {
+    document.getElementById('vel-value').textContent = Math.abs(round(d.velocity_lbs_day, 3));
+    document.getElementById('vel-unit').textContent = 'lbs/day';
+  }
+}
+
+function render(d) {
+  window._data = d;
+  // Hero
+  document.getElementById('interpolated').textContent = round(d.interpolated_weight, 2);
+  document.getElementById('last-weight').textContent = d.current_weight + ' lbs';
+  document.getElementById('trend-weight').textContent = d.trend_weight;
+  
+  // Velocity
+  renderVelocity(d);
+  document.getElementById('mlbs-hr').textContent = round(d.mlbs_per_hr, 0) + ' mlbs/hr';
+  document.getElementById('lbs-wk').textContent = round(d.velocity_lbs_day * 7, 2) + ' lbs/wk';
+  
+  // Acceleration
+  const accelGood = d.acceleration <= 0;
+  document.getElementById('accel-icon').textContent = accelGood ? '▶▶' : '⏸';
+  document.getElementById('accel-icon').style.color = accelGood ? 'var(--emerald)' : 'var(--amber)';
+  document.getElementById('accel-value').textContent = (accelGood ? 'Faster: ' : 'Slower: ') + Math.abs(round(d.acceleration, 4)) + ' lbs/day²';
+  document.getElementById('accel-value').style.color = accelGood ? 'var(--emerald)' : 'var(--rose)';
+  
+  // Stats
+  document.getElementById('cal-in').textContent = d.calories_in;
+  document.getElementById('cal-burned').textContent = Math.round(d.tdee * d.hours_elapsed / 24 + d.exercise_burn);
+  document.getElementById('cal-net').textContent = d.net_calories;
+  document.getElementById('cal-net').className = 'stat-value ' + (d.net_calories < 0 ? 'negative' : 'positive');
+  document.getElementById('runway').textContent = d.runway;
+  document.getElementById('op210-phase').innerHTML = '<span style="color:var(--cyan)">' + d.phase + '</span> Phase';
+  document.getElementById('protein').textContent = d.protein_g + 'g';
+  document.getElementById('carbs').textContent = d.carbs_g + 'g';
+  document.getElementById('fat').textContent = d.fat_g + 'g';
+  
+  // VO2
+  document.getElementById('vo2-val').textContent = d.vo2max ? round(d.vo2max, 1) : '--';
+  document.getElementById('vo2-cat').textContent = d.vo2_category || '--';
+  document.getElementById('vo2-cat').style.color = d.vo2_color || 'var(--text-muted)';
+  
+  // Op 210
+  document.getElementById('op-current').textContent = d.current_weight;
+  document.getElementById('op-current-sub').textContent = 'lbs @ ' + round(d.body_fat_pct || 0, 1) + '% BF';
+  document.getElementById('op-lean').textContent = '+' + round(d.lean_delta || 0, 1);
+  document.getElementById('op-lean-sub').textContent = round(d.lean_mass || 0, 1) + ' → ' + d.goal_lean + ' lbs';
+  document.getElementById('op-fat').textContent = '-' + round(d.fat_delta || 0, 1);
+  document.getElementById('op-fat-sub').textContent = round(d.fat_mass || 0, 1) + ' → ' + d.goal_fat + ' lbs';
+  
+  // Weight chart
+  if (d.weights && d.weights.length) {
+    const min = Math.min(...d.weights.map(w => w.weight_lbs));
+    const max = Math.max(...d.weights.map(w => w.weight_lbs));
+    const range = max - min || 1;
+    document.getElementById('weight-badge').textContent = d.weights.length + ' entries';
+    document.getElementById('weight-chart').innerHTML = d.weights.slice().reverse().map(w => {
+      const h = 20 + ((w.weight_lbs - min) / range) * 60;
+      return '<div class="bar weight" style="height:'+h+'%" title="'+w.weight_lbs+' lbs"></div>';
+    }).join('');
+  }
+  
+  // Daily net chart
+  if (d.daily_net && d.daily_net.length) {
+    const maxAbs = Math.max(...d.daily_net.map(x => Math.abs(x.net))) || 1;
+    document.getElementById('net-chart').innerHTML = d.daily_net.map(x => {
+      const h = Math.max(10, (Math.abs(x.net) / maxAbs) * 80);
+      const cls = x.net < 0 ? 'deficit' : 'surplus';
+      return '<div class="bar '+cls+'" style="height:'+h+'%" title="'+x.date+': '+x.net+' cal"></div>';
+    }).join('');
+  }
+  
+  // Intake table
+  if (d.intake && d.intake.length) {
+    document.getElementById('intake-table').innerHTML = d.intake.slice(0,10).map(i => 
+      '<tr><td>'+fmtDate(i.logged_at)+'</td><td class="mono">'+i.calories+'</td><td class="mono">'+(i.protein_g||'-')+'</td><td class="mono">'+(i.carbs_g||'-')+'</td><td class="mono">'+(i.fat_g||'-')+'</td><td class="desc">'+(i.description||'-')+'</td></tr>'
+    ).join('');
+  }
+  
+  // Exercise table
+  if (d.exercise && d.exercise.length) {
+    document.getElementById('exercise-table').innerHTML = d.exercise.slice(0,5).map(e =>
+      '<tr><td>'+fmtDate(e.logged_at)+'</td><td>'+e.type+'</td><td class="mono">'+(e.duration_min||'-')+'</td><td class="mono">'+(e.calories_burned||'-')+'</td><td class="mono">'+(e.distance_miles?e.distance_miles.toFixed(2)+'mi':'-')+'</td><td class="mono">'+(e.max_hr||'-')+'</td><td class="desc">'+(e.notes||'-')+'</td></tr>'
+    ).join('');
+  }
+  
+  // Weights table
+  if (d.weights && d.weights.length) {
+    document.getElementById('weights-table').innerHTML = d.weights.slice(0,5).map(w =>
+      '<tr><td class="mono">#'+w.id+'</td><td class="mono">'+w.weight_lbs+' lbs</td><td>'+fmtDate(w.logged_at)+'</td></tr>'
+    ).join('');
+  }
+}
+
+async function loadData(forceRefresh = false) {
+  // Try cache first
+  if (!forceRefresh) {
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < CACHE_TTL) {
+          render(data);
+          // Still fetch fresh data in background
+          fetch('/api/metrics').then(r => r.json()).then(d => {
+            render(d);
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ data: d, timestamp: Date.now() }));
+          }).catch(() => {});
+          return;
+        }
+      }
+    } catch (e) {}
+  }
+  
+  // Fetch fresh
+  try {
+    const res = await fetch('/api/metrics');
+    const data = await res.json();
+    render(data);
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+  } catch (e) {
+    console.error('Failed to load:', e);
+  }
+}
+
+loadData();
+// Auto-refresh every 60s
+setInterval(() => loadData(true), 60000);
+</script>
 </body></html>`;
 
   return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', ...cors } });
