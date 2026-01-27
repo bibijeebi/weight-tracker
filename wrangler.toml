@@ -1,0 +1,17 @@
+name = "weight-tracker"
+compatibility_date = "2024-01-01"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "weight-tracker"
+database_id = "66a59049-f2a1-40bb-a279-c13dd8ff85d1"
+
+# Staging environment (uses same DB for now, could create separate staging DB later)
+[env.staging]
+name = "weight-tracker-staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "weight-tracker"
+database_id = "66a59049-f2a1-40bb-a279-c13dd8ff85d1"
