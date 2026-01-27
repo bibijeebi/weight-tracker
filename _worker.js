@@ -414,7 +414,7 @@ async function serveDashboard(env) {
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
 .layout{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
-@media(max-width:900px){.layout{grid-template-columns:1fr}.sidebar{border-right:none;border-bottom:1px solid var(--border)}}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.sidebar{border-right:none;border-bottom:1px solid var(--border);padding:16px}}
 .sidebar{background:var(--surface);border-right:1px solid var(--border);padding:20px;display:flex;flex-direction:column;gap:16px}
 .header{display:flex;align-items:center;justify-content:space-between}
 .brand{display:flex;align-items:center;gap:10px}
@@ -425,7 +425,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
 .hero{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center}
 .hero-label{font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px}
-.hero-weight{font-family:'JetBrains Mono',monospace;font-size:48px;font-weight:700;background:linear-gradient(135deg,var(--emerald),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:0 0 60px var(--emerald-glow)}
+.hero-weight{font-family:'JetBrains Mono',monospace;font-size:48px;font-weight:700;color:var(--emerald);background:linear-gradient(135deg,var(--emerald),var(--cyan));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .hero-sub{font-size:12px;color:var(--text-muted);margin-top:4px}
 .hero-sub strong{color:var(--text-secondary)}
 .velocity-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
@@ -451,12 +451,15 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .macro{text-align:center}
 .macro-value{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600}
 .macro-label{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-top:2px}
-.vo2-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
-.vo2-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.vo2-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden}
+.vo2-card::before{content:'';position:absolute;top:0;right:0;width:80px;height:80px;background:radial-gradient(circle at top right,rgba(16,185,129,0.15),transparent 70%);pointer-events:none}
+.vo2-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .vo2-label{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)}
-.vo2-category{font-size:12px;font-weight:500}
-.vo2-value{font-family:'JetBrains Mono',monospace;font-size:42px;font-weight:600}
+.vo2-category{font-size:12px;font-weight:600;padding:4px 10px;border-radius:12px;background:rgba(16,185,129,0.15)}
+.vo2-value{font-family:'JetBrains Mono',monospace;font-size:42px;font-weight:700;margin-top:4px}
+.vo2-detail{font-size:11px;color:var(--text-muted);margin-top:4px}
 main{padding:24px;overflow-y:auto}
+@media(max-width:900px){main{padding:16px}}
 .section{margin-bottom:24px}
 .section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:12px}
 .op-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
@@ -464,6 +467,7 @@ main{padding:24px;overflow-y:auto}
 .op-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
 .op-card-label{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:8px}
 .op-card-value{font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:700}
+@media(max-width:900px){.op-card-value{font-size:26px}}
 .op-card-sub{font-size:11px;color:var(--text-muted);margin-top:4px}
 .charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
 @media(max-width:900px){.charts{grid-template-columns:1fr}}
@@ -479,6 +483,7 @@ main{padding:24px;overflow-y:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border)}
 th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);background:var(--surface)}
+@media(max-width:900px){th,td{padding:8px 6px;font-size:12px}th{font-size:10px}.desc{max-width:120px}}
 .mono{font-family:'JetBrains Mono',monospace}
 .desc{color:var(--text-secondary);max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .skeleton{background:linear-gradient(90deg,var(--card) 25%,var(--border) 50%,var(--card) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px}
@@ -518,6 +523,7 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
     <div class="vo2-card">
       <div class="vo2-header"><span class="vo2-label">VO₂ Max</span><span class="vo2-category" id="vo2-cat">--</span></div>
       <div class="vo2-value" id="vo2-val">--</div>
+      <div class="vo2-detail" id="vo2-detail">RHR -- · Max HR --</div>
     </div>
   </aside>
   <main>
@@ -611,6 +617,8 @@ function render(d) {
   document.getElementById('vo2-val').textContent = d.vo2max ? round(d.vo2max, 1) : '--';
   document.getElementById('vo2-cat').textContent = d.vo2_category || '--';
   document.getElementById('vo2-cat').style.color = d.vo2_color || 'var(--text-muted)';
+  document.getElementById('vo2-cat').style.background = d.vo2_color ? d.vo2_color + '25' : 'transparent';
+  document.getElementById('vo2-detail').textContent = 'RHR ' + (d.resting_hr || '--') + ' · Max HR ' + (d.max_hr || '--');
   
   // Op 210
   document.getElementById('op-current').textContent = d.current_weight;
