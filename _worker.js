@@ -1,4 +1,4 @@
-// Weight Tracker - Cloudflare Pages Worker
+// Health Tracker - Cloudflare Pages Worker
 // Full SSR mode - handles all routes
 
 const CAL_PER_LB = 3500;
@@ -395,17 +395,17 @@ function calculateDailyNet(intake, exercise, tdee) {
 async function serveDashboard(env) {
   const html = `<!DOCTYPE html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Weight Tracker - Operation 210</title>
+<title>Health Tracker - Operation 210</title>
 <meta name="description" content="Real-time weight tracking with caloric interpolation, body composition analysis, and VO₂ max estimation.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://health.niggerfaggot.club">
-<meta property="og:title" content="Weight Tracker - Operation 210">
+<meta property="og:title" content="Health Tracker - Operation 210">
 <meta property="og:description" content="Real-time weight tracking with caloric interpolation, body composition analysis, and VO₂ max estimation.">
 <meta property="og:image" content="https://claude-deploy.bennyforeman1.workers.dev/r2/file/og-weight-tracker.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Weight Tracker - Operation 210">
+<meta name="twitter:title" content="Health Tracker - Operation 210">
 <meta name="twitter:description" content="Real-time weight tracking with caloric interpolation, body composition analysis, and VO₂ max estimation.">
 <meta name="twitter:image" content="https://claude-deploy.bennyforeman1.workers.dev/r2/file/og-weight-tracker.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -500,7 +500,7 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
 <div class="layout">
   <aside class="sidebar">
     <div class="header">
-      <div class="brand"><div class="brand-icon">W</div><span class="brand-text">Weight Tracker</span></div>
+      <div class="brand"><div class="brand-icon">H</div><span class="brand-text">Health Tracker</span></div>
       <div class="live"><span class="live-dot"></span>Live</div>
     </div>
     <div class="hero">
@@ -723,3 +723,4 @@ setInterval(() => loadData(true), 60000);
 
   return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', ...cors } });
 }
+
