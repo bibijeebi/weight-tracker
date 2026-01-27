@@ -451,14 +451,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .macro{text-align:center}
 .macro-value{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600}
 .macro-label{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-top:2px}
-.vo2-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden}
-.vo2-card::before{content:'';position:absolute;top:0;right:0;width:80px;height:80px;background:radial-gradient(circle at top right,rgba(16,185,129,0.15),transparent 70%);pointer-events:none}
-.vo2-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-.vo2-label{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)}
-.vo2-category{font-size:11px;font-weight:600;padding:4px 10px;border-radius:12px;background:rgba(16,185,129,0.15)}
-.vo2-value{font-family:'JetBrains Mono',monospace;font-size:42px;font-weight:700;margin-top:4px}
-.vo2-detail{font-size:11px;color:var(--text-muted);margin-top:4px}
-@media(max-width:900px){.vo2-card{padding:12px}.vo2-value{font-size:36px}.vo2-detail{font-size:10px}}
+.vo2-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative;overflow:hidden}
+.vo2-card::before{content:'';position:absolute;top:0;right:0;width:60px;height:60px;background:radial-gradient(circle at top right,rgba(16,185,129,0.12),transparent 70%);pointer-events:none}
+.vo2-left{display:flex;align-items:center;gap:12px}
+.vo2-label{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)}
+.vo2-value{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700}
+.vo2-detail{font-size:10px;color:var(--text-muted)}
+.vo2-category{font-size:10px;font-weight:600;padding:4px 10px;border-radius:12px;background:rgba(16,185,129,0.15);white-space:nowrap}
 main{padding:24px;overflow-y:auto}
 @media(max-width:900px){main{padding:16px}}
 .section{margin-bottom:24px}
@@ -484,9 +483,11 @@ main{padding:24px;overflow-y:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border)}
 th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);background:var(--surface)}
-@media(max-width:900px){th,td{padding:8px 6px;font-size:12px}th{font-size:10px}.desc{max-width:120px}td:first-child{white-space:nowrap;font-size:11px}}
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.table-wrap table{min-width:520px}
+@media(max-width:900px){th,td{padding:8px 6px;font-size:12px}th{font-size:10px}td:first-child{white-space:nowrap;font-size:11px}}
 .mono{font-family:'JetBrains Mono',monospace}
-.desc{color:var(--text-secondary);max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.desc{color:var(--text-secondary);white-space:nowrap}
 .skeleton{background:linear-gradient(90deg,var(--card) 25%,var(--border) 50%,var(--card) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .skeleton-text{height:1em;width:60%}
@@ -522,9 +523,11 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       <div class="macros"><div class="macro"><div class="macro-value" id="protein">--</div><div class="macro-label">Protein</div></div><div class="macro"><div class="macro-value" id="carbs">--</div><div class="macro-label">Carbs</div></div><div class="macro"><div class="macro-value" id="fat">--</div><div class="macro-label">Fat</div></div></div>
     </div>
     <div class="vo2-card">
-      <div class="vo2-header"><span class="vo2-label">VO₂ Max</span><span class="vo2-category" id="vo2-cat">--</span></div>
-      <div class="vo2-value" id="vo2-val">--</div>
-      <div class="vo2-detail" id="vo2-detail">RHR -- · Max HR --</div>
+      <div class="vo2-left">
+        <div><div class="vo2-label">VO₂ Max</div><div class="vo2-value" id="vo2-val">--</div></div>
+        <div class="vo2-detail" id="vo2-detail">RHR -- · Max --</div>
+      </div>
+      <span class="vo2-category" id="vo2-cat">--</span>
     </div>
   </aside>
   <main>
@@ -541,17 +544,17 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       <div class="chart-card"><div class="chart-header"><span class="chart-title">Daily Net</span><span class="chart-badge">14 days</span></div><div class="chart" id="net-chart"></div></div>
     </div>
     <div class="section"><div class="section-title">Recent Intake</div>
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+      <div class="table-wrap">
         <table><thead><tr><th>Time</th><th>Cal</th><th>P</th><th>C</th><th>F</th><th>Description</th></tr></thead><tbody id="intake-table"><tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
       </div>
     </div>
     <div class="section"><div class="section-title">Recent Exercise</div>
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+      <div class="table-wrap">
         <table><thead><tr><th>Time</th><th>Type</th><th>Min</th><th>Cal</th><th>Dist</th><th>Max HR</th><th>Notes</th></tr></thead><tbody id="exercise-table"><tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
       </div>
     </div>
     <div class="section"><div class="section-title">Weigh-ins</div>
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+      <div class="table-wrap">
         <table><thead><tr><th>ID</th><th>Weight</th><th>Time</th></tr></thead><tbody id="weights-table"><tr><td colspan="3" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
       </div>
     </div>
@@ -627,7 +630,7 @@ function render(d) {
   document.getElementById('vo2-cat').textContent = d.vo2_category || '--';
   document.getElementById('vo2-cat').style.color = d.vo2_color || 'var(--text-muted)';
   document.getElementById('vo2-cat').style.background = d.vo2_color ? d.vo2_color + '25' : 'transparent';
-  document.getElementById('vo2-detail').textContent = 'RHR ' + (d.resting_hr || '--') + ' · Max HR ' + (d.max_hr || '--');
+  document.getElementById('vo2-detail').textContent = 'RHR ' + (d.resting_hr || '--') + ' · Max ' + (d.max_hr || '--');
   
   // Op 210
   document.getElementById('op-current').textContent = d.current_weight;
