@@ -300,10 +300,13 @@ async function calculateMetrics(db) {
     leanMass = round(currentWeight - fatMass, 1);
   }
 
-  // VO2 Max
+  // VO2 Max - use highest max HR from vitals or recent exercise
   let vo2max = null, vo2Category = null, vo2Color = null;
-  if (vitals && vitals.resting_hr && vitals.max_hr) {
-    vo2max = round(15.3 * (vitals.max_hr / vitals.resting_hr), 1);
+  const exerciseMaxHR = exercise.length ? Math.max(...exercise.filter(e => e.max_hr).map(e => e.max_hr)) : 0;
+  const maxHR = Math.max(vitals?.max_hr || 0, exerciseMaxHR) || null;
+  const restingHR = vitals?.resting_hr || null;
+  if (restingHR && maxHR) {
+    vo2max = round(15.3 * (maxHR / restingHR), 1);
     if (vo2max >= 57) { vo2Category = 'Elite'; vo2Color = '#22d3ee'; }
     else if (vo2max >= 52) { vo2Category = 'Excellent'; vo2Color = '#10b981'; }
     else if (vo2max >= 44) { vo2Category = 'Good'; vo2Color = '#10b981'; }
@@ -339,8 +342,8 @@ async function calculateMetrics(db) {
     vo2max: vo2max,
     vo2_category: vo2Category,
     vo2_color: vo2Color,
-    resting_hr: vitals?.resting_hr,
-    max_hr: vitals?.max_hr,
+    resting_hr: restingHR,
+    max_hr: maxHR,
     neck_in: measurements?.neck_in,
     waist_in: measurements?.waist_in,
     tdee: TDEE,
