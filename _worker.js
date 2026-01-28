@@ -27,8 +27,9 @@ export default {
 Personal health tracking API at health.niggerfaggot.club. Tracks weight, food intake, exercise, vitals, body measurements.
 
 ## Authentication
-Write operations require: \`Authorization: Bearer zwaV2TuGRumDt3mX6AIcVrPQNboM09px\`
+Write operations require: \`Authorization: Bearer <TOKEN>\`
 Read operations (GET) are public.
+Token is stored in Claude's memory - ask user if needed.
 
 ## Timestamps
 Always UTC with Z suffix (e.g., 2026-01-27T23:30:00Z). The UI displays in America/New_York.
@@ -72,7 +73,7 @@ Always UTC with Z suffix (e.g., 2026-01-27T23:30:00Z). The UI displays in Americ
 ## Example: Log a meal
 \`\`\`bash
 curl -X POST https://health.niggerfaggot.club/api/intake \\
-  -H "Authorization: Bearer zwaV2TuGRumDt3mX6AIcVrPQNboM09px" \\
+  -H "Authorization: Bearer <TOKEN>" \\
   -H "Content-Type: application/json" \\
   -d '{"calories": 600, "protein": 25, "carbs": 52, "fat": 20, "description": "Japanese beef curry with rice"}'
 \`\`\`
