@@ -476,10 +476,15 @@ main{padding:24px;overflow-y:auto}
 .chart-title{font-size:13px;font-weight:500}
 .chart-badge{font-size:10px;padding:4px 8px;background:var(--surface);border-radius:6px;color:var(--text-muted)}
 .chart{display:flex;align-items:flex-end;gap:4px;height:80px}
-.bar{flex:1;border-radius:3px 3px 0 0;min-width:8px;transition:height 0.3s}
+.bar{flex:1;border-radius:3px 3px 0 0;min-width:8px;transition:height 0.3s;cursor:pointer;position:relative}
 .bar.surplus{background:linear-gradient(to top,var(--rose),#fb7185)}
 .bar.deficit{background:linear-gradient(to top,var(--emerald),#34d399)}
 .bar.weight{background:linear-gradient(to top,var(--cyan),var(--blue))}
+.bar:hover{opacity:0.8}
+.chart-wrap{display:flex;gap:8px;align-items:stretch}
+.y-axis{display:flex;flex-direction:column;justify-content:space-between;font-size:10px;color:var(--text-muted);padding:2px 0;min-width:36px;text-align:right}
+.chart-tooltip{position:fixed;background:var(--surface);border:1px solid var(--border);padding:6px 10px;border-radius:6px;font-size:11px;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:1000;white-space:nowrap}
+.chart-tooltip.visible{opacity:1}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border)}
 th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);background:var(--surface)}
@@ -540,8 +545,8 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       </div>
     </div>
     <div class="charts">
-      <div class="chart-card"><div class="chart-header"><span class="chart-title">Weight History</span><span class="chart-badge" id="weight-badge">--</span></div><div class="chart" id="weight-chart"></div></div>
-      <div class="chart-card"><div class="chart-header"><span class="chart-title">Daily Net</span><span class="chart-badge">14 days</span></div><div class="chart" id="net-chart"></div></div>
+      <div class="chart-card"><div class="chart-header"><span class="chart-title">Weight History</span><span class="chart-badge" id="weight-badge">--</span></div><div class="chart-wrap"><div class="y-axis" id="weight-y-axis"></div><div class="chart" id="weight-chart"></div></div></div>
+      <div class="chart-card"><div class="chart-header"><span class="chart-title">Daily Net</span><span class="chart-badge">14 days</span></div><div class="chart-wrap"><div class="y-axis" id="net-y-axis"></div><div class="chart" id="net-chart"></div></div></div>
     </div>
     <div class="section"><div class="section-title">Recent Intake</div>
       <div class="table-wrap">
@@ -646,19 +651,25 @@ function render(d) {
     const max = Math.max(...d.weights.map(w => w.weight_lbs));
     const range = max - min || 1;
     document.getElementById('weight-badge').textContent = d.weights.length + ' entries';
+    document.getElementById('weight-y-axis').innerHTML = '<span>'+max+'</span><span>'+min+'</span>';
     document.getElementById('weight-chart').innerHTML = d.weights.slice().reverse().map(w => {
       const h = 20 + ((w.weight_lbs - min) / range) * 60;
-      return '<div class="bar weight" style="height:'+h+'%" title="'+w.weight_lbs+' lbs"></div>';
+      const date = new Date(w.logged_at).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'America/New_York'});
+      return '<div class="bar weight" style="height:'+h+'%" data-tip="'+date+': '+w.weight_lbs+' lbs"></div>';
     }).join('');
   }
   
   // Daily net chart
   if (d.daily_net && d.daily_net.length) {
     const maxAbs = Math.max(...d.daily_net.map(x => Math.abs(x.net))) || 1;
+    const maxNet = Math.max(...d.daily_net.map(x => x.net));
+    const minNet = Math.min(...d.daily_net.map(x => x.net));
+    document.getElementById('net-y-axis').innerHTML = '<span>'+(maxNet>0?'+':'')+maxNet+'</span><span>'+(minNet>0?'+':'')+minNet+'</span>';
     document.getElementById('net-chart').innerHTML = d.daily_net.map(x => {
       const h = Math.max(10, (Math.abs(x.net) / maxAbs) * 80);
       const cls = x.net < 0 ? 'deficit' : 'surplus';
-      return '<div class="bar '+cls+'" style="height:'+h+'%" title="'+x.date+': '+x.net+' cal"></div>';
+      const sign = x.net > 0 ? '+' : '';
+      return '<div class="bar '+cls+'" style="height:'+h+'%" data-tip="'+x.date+': '+sign+x.net+' cal"></div>';
     }).join('');
   }
   
@@ -715,10 +726,29 @@ async function loadData(forceRefresh = false) {
   }
 }
 
+// Tooltip handling
+const tooltip = document.getElementById('chart-tooltip');
+document.addEventListener('mouseover', e => {
+  if (e.target.dataset.tip) {
+    tooltip.textContent = e.target.dataset.tip;
+    tooltip.classList.add('visible');
+  }
+});
+document.addEventListener('mousemove', e => {
+  if (tooltip.classList.contains('visible')) {
+    tooltip.style.left = (e.clientX + 12) + 'px';
+    tooltip.style.top = (e.clientY - 24) + 'px';
+  }
+});
+document.addEventListener('mouseout', e => {
+  if (e.target.dataset.tip) tooltip.classList.remove('visible');
+});
+
 loadData();
 // Auto-refresh every 60s
 setInterval(() => loadData(true), 60000);
 </script>
+<div class="chart-tooltip" id="chart-tooltip"></div>
 </body></html>`;
 
   return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', ...cors } });
