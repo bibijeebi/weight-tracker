@@ -19,6 +19,71 @@ export default {
     
     if (method === 'OPTIONS') return new Response(null, { headers: cors });
 
+    // === LLMS.TXT ===
+    if (path === '/llms.txt') {
+      return new Response(`# Health Tracker API - LLM Context
+
+## Overview
+Personal health tracking API at health.niggerfaggot.club. Tracks weight, food intake, exercise, vitals, body measurements.
+
+## Authentication
+Write operations require: \`Authorization: Bearer zwaV2TuGRumDt3mX6AIcVrPQNboM09px\`
+Read operations (GET) are public.
+
+## Timestamps
+Always UTC with Z suffix (e.g., 2026-01-27T23:30:00Z). The UI displays in America/New_York.
+
+## Endpoints
+
+### Weight
+- GET /api/weight?limit=10 - List recent weights
+- POST /api/weight - Log weight: {"weight": 178.2, "logged_at?": "ISO"}
+- PUT /api/weight/:id - Update: {"weight?", "logged_at?"}
+- DELETE /api/weight/:id
+
+### Intake (Food)
+- GET /api/intake?limit=20 - List recent intake
+- POST /api/intake - Log food: {"calories": 600, "protein": 25, "carbs": 52, "fat": 20, "description": "text", "logged_at?": "ISO"}
+- PUT /api/intake/:id - Update any fields
+- DELETE /api/intake/:id
+
+**IMPORTANT: Always estimate and include ALL macros (calories, protein, carbs, fat) - never skip P/C/F**
+
+### Exercise
+- GET /api/exercise?limit=20
+- POST /api/exercise - {"type": "Walking", "duration_min": 30, "calories_burned": 150, "distance_miles": 1.5, "avg_hr": 110, "max_hr": 130, "notes": "text", "logged_at?"}
+- PUT /api/exercise/:id
+- DELETE /api/exercise/:id
+
+### Vitals
+- GET /api/vitals?limit=20
+- POST /api/vitals - {"resting_hr": 62, "max_hr": 180, "notes": "text", "logged_at?"}
+- PUT /api/vitals/:id
+- DELETE /api/vitals/:id
+
+### Measurements
+- GET /api/measurements
+- POST /api/measurements - {"neck": 15.5, "waist": 34, "height": 71, "notes": "text", "logged_at?"}
+
+### Read-Only
+- GET /api/metrics - Computed stats (TDEE, interpolated weight, projections)
+- GET /api/stats - Full dashboard data bundle
+
+## Example: Log a meal
+\`\`\`bash
+curl -X POST https://health.niggerfaggot.club/api/intake \\
+  -H "Authorization: Bearer zwaV2TuGRumDt3mX6AIcVrPQNboM09px" \\
+  -H "Content-Type: application/json" \\
+  -d '{"calories": 600, "protein": 25, "carbs": 52, "fat": 20, "description": "Japanese beef curry with rice"}'
+\`\`\`
+
+## User Context
+- Goal: Operation 210 (gain muscle to 210 lbs, currently ~178)
+- TDEE: ~2979 cal
+- Height: 71 inches (5'11")
+`, { headers: { 'Content-Type': 'text/plain; charset=utf-8', ...cors } });
+    }
+
     // === API ROUTES ===
     if (path.startsWith('/api/')) {
       try {
