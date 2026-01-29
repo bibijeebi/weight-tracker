@@ -256,10 +256,18 @@ curl -X POST https://health.niggerfaggot.club/api/intake \\
 
         // STATS
         if (path === '/api/stats' && method === 'GET') {
+          // Calculate today's start in UTC using Eastern Time
+          const etDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
+          const [y, m, d] = etDateStr.split('-').map(Number);
+          const mar2ndSun = new Date(Date.UTC(y, 2, 8 + (7 - new Date(Date.UTC(y, 2, 8)).getUTCDay()) % 7, 7));
+          const nov1stSun = new Date(Date.UTC(y, 10, 1 + (7 - new Date(Date.UTC(y, 10, 1)).getUTCDay()) % 7, 6));
+          const isDST = new Date() >= mar2ndSun && new Date() < nov1stSun;
+          const todayStartUTC = new Date(Date.UTC(y, m - 1, d, isDST ? 4 : 5, 0, 0)).toISOString();
+
           const [weights, intake, exercise, vitals, measurements, configRes] = await Promise.all([
             env.DB.prepare('SELECT * FROM weights_v2 ORDER BY logged_at DESC LIMIT 10').all(),
-            env.DB.prepare("SELECT * FROM intake_v2 WHERE logged_at > datetime('now', '-1 day')").all(),
-            env.DB.prepare('SELECT * FROM exercise_v2 ORDER BY logged_at DESC LIMIT 5').all(),
+            env.DB.prepare('SELECT * FROM intake_v2 WHERE logged_at >= ?').bind(todayStartUTC).all(),
+            env.DB.prepare('SELECT * FROM exercise_v2 WHERE logged_at >= ?').bind(todayStartUTC).all(),
             env.DB.prepare('SELECT * FROM vitals_v2 ORDER BY logged_at DESC LIMIT 1').all(),
             env.DB.prepare('SELECT * FROM measurements_v2 ORDER BY logged_at DESC LIMIT 1').all(),
             env.DB.prepare('SELECT * FROM config_v2').all()
@@ -269,6 +277,7 @@ curl -X POST https://health.niggerfaggot.club/api/intake \\
             current_weight: weights.results[0]?.weight_lbs,
             today_calories: intake.results.reduce((s, i) => s + (i.calories || 0), 0),
             today_protein: Math.round(intake.results.reduce((s, i) => s + (i.protein_g || 0), 0)),
+            today_exercise_calories: exercise.results.reduce((s, e) => s + (e.calories_burned || 0), 0),
             goal_weight: parseFloat(cfg.goal_weight || 210),
             tdee: parseFloat(cfg.tdee_base || 2979),
             measurements: measurements.results[0] || null,
