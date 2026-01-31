@@ -454,13 +454,14 @@ function calculateDailyNet(intake, exercise, tdee) {
     days[dateStr].exercise_burn += e.calories_burned || 0;
   });
   
-  // Generate last 14 days
+  // Generate last 14 days, but only include days with actual data
   const result = [];
   for (let i = 13; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const dateStr = d.toLocaleDateString('en-CA', { timeZone: tz });
-    const dayData = days[dateStr] || { calories_in: 0, exercise_burn: 0 };
+    const dayData = days[dateStr];
+    if (!dayData) continue; // Skip days with no data
     const net = dayData.calories_in - tdee - dayData.exercise_burn;
     result.push({ date: dateStr, net: Math.round(net), calories_in: dayData.calories_in, exercise_burn: dayData.exercise_burn });
   }
@@ -634,8 +635,8 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       </div>
     </div>
     <div class="section"><div class="section-title">Weigh-ins</div>
-      <div class="table-wrap">
-        <table><thead><tr><th>ID</th><th>Weight</th><th>Time</th></tr></thead><tbody id="weights-table"><tr><td colspan="3" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
+      <div class="table-wrap" style="width:fit-content">
+        <table style="width:auto"><thead><tr><th>ID</th><th>Weight</th><th>Time</th></tr></thead><tbody id="weights-table"><tr><td colspan="3" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
       </div>
     </div>
   </main>
@@ -751,7 +752,7 @@ function render(d) {
   // Intake table
   if (d.intake && d.intake.length) {
     document.getElementById('intake-table').innerHTML = d.intake.slice(0,10).map(i => 
-      '<tr><td>'+fmtDate(i.logged_at)+'</td><td class="mono">'+i.calories+'</td><td class="mono">'+(i.protein_g||'-')+'</td><td class="mono">'+(i.carbs_g||'-')+'</td><td class="mono">'+(i.fat_g||'-')+'</td><td class="desc">'+(i.description||'-')+'</td></tr>'
+      '<tr><td>'+fmtDate(i.logged_at)+'</td><td class="mono">'+i.calories+'</td><td class="mono">'+(i.protein_g||'-')+'</td><td class="mono">'+(i.carbs_g||'-')+'</td><td class="mono">'+(i.fat_g||'-')+'</td><td>'+(i.description||'-')+'</td></tr>'
     ).join('');
   }
   
@@ -828,4 +829,5 @@ setInterval(() => loadData(true), 60000);
 
   return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', ...cors } });
 }
+
 
