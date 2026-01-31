@@ -825,6 +825,7 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       </div>
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
+      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:8px">Calories</div>
       <div class="stat-row"><span class="stat-label">Eaten Today</span><span class="stat-value" id="cal-in">--</span></div>
       <div class="stat-row"><span class="stat-label">Baseline (prorated)</span><span class="stat-value" id="baseline-prorated">--</span></div>
       <div class="stat-row"><span class="stat-label">Exercise</span><span class="stat-value positive" id="exercise-burn">--</span></div>
