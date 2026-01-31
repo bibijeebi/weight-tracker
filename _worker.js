@@ -953,7 +953,7 @@ function render(d) {
   document.getElementById('baseline-val').textContent = d.baseline + ' cal/day';
   if (d.baseline_calculated) {
     const confColors = { high: 'var(--emerald)', medium: 'var(--amber)', low: 'var(--text-muted)' };
-    document.getElementById('baseline-source').innerHTML = d.baseline_days + 'd data · ' + d.exercise_in_period + ' cal exercise · <span style="color:'+confColors[d.baseline_confidence]+'">'+d.baseline_confidence+'</span>';
+    document.getElementById('baseline-source').innerHTML = 'Based on ' + d.baseline_days + ' days (<span style="color:'+confColors[d.baseline_confidence]+'">'+d.baseline_confidence+' confidence</span>)';
   } else {
     document.getElementById('baseline-source').textContent = 'Using default (need more data)';
   }
