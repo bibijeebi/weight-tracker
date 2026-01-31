@@ -635,13 +635,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .vo2-category{font-size:10px;font-weight:600;padding:4px 10px;border-radius:12px;background:rgba(16,185,129,0.15);white-space:nowrap}
 .export-btn{display:block;text-align:center;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:12px;text-decoration:none;transition:all 0.2s}
 .export-btn:hover{background:var(--card);color:var(--text);border-color:var(--emerald)}
-.sidebar-section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
-.sidebar-section-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:8px}
-.sidebar-weighins{font-size:12px}
-.sidebar-weighin{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)}
-.sidebar-weighin:last-child{border-bottom:none}
-.sidebar-weighin-time{color:var(--text-muted)}
-.sidebar-weighin-val{font-family:'JetBrains Mono',monospace}
 main{padding:24px;overflow-y:auto;overflow-x:hidden;max-width:100%}
 @media(max-width:900px){main{padding:16px}}
 .section{margin-bottom:24px}
@@ -748,10 +741,6 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
         <div class="vo2-detail" id="vo2-detail">RHR -- · Max --</div>
       </div>
       <span class="vo2-category" id="vo2-cat">--</span>
-    </div>
-    <div class="sidebar-section">
-      <div class="sidebar-section-title">Recent Weigh-ins</div>
-      <div class="sidebar-weighins" id="sidebar-weighins"></div>
     </div>
     <a href="/api/export" class="export-btn" download>⬇ Export Backup</a>
   </aside>
@@ -917,11 +906,7 @@ function render(d) {
     const weighinsDropdownHtml = d.weights.slice(0,5).map(w =>
       '<div class="metric-row"><span class="metric-name">'+fmtDate(w.logged_at)+'</span><span class="metric-val">'+w.weight_lbs+' lbs</span></div>'
     ).join('');
-    const weighinsSidebarHtml = d.weights.slice(0,5).map(w =>
-      '<div class="sidebar-weighin"><span class="sidebar-weighin-time">'+fmtDate(w.logged_at)+'</span><span class="sidebar-weighin-val">'+w.weight_lbs+' lbs</span></div>'
-    ).join('');
     document.getElementById('weighins-dropdown').innerHTML = weighinsDropdownHtml;
-    document.getElementById('sidebar-weighins').innerHTML = weighinsSidebarHtml;
   }
 }
 
