@@ -699,8 +699,8 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       </div>
     </div>
     <div class="section"><div class="section-title">Weigh-ins</div>
-      <div class="table-wrap fit">
-        <table><thead><tr><th>ID</th><th>Weight</th><th>Time</th></tr></thead><tbody id="weights-table"><tr><td colspan="3" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
+      <div class="table-wrap">
+        <table style="width:auto;min-width:0"><thead><tr><th>ID</th><th>Weight</th><th>Time</th></tr></thead><tbody id="weights-table"><tr><td colspan="3" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
       </div>
     </div>
   </main>
