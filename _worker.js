@@ -945,9 +945,10 @@ function render(d) {
   document.getElementById('cal-in').textContent = d.calories_in;
   document.getElementById('baseline-prorated').textContent = d.baseline_prorated;
   document.getElementById('exercise-burn').textContent = d.exercise_burn || 0;
-  document.getElementById('cal-net').textContent = (d.net_calories > 0 ? '+' : '') + d.net_calories;
-  document.getElementById('runway').textContent = d.runway;
-  document.getElementById('runway').className = 'stat-value ' + (d.runway > 0 ? 'positive' : 'negative');
+  document.getElementById('cal-net').textContent = (d.net_calories >= 0 ? '+' : '') + d.net_calories;
+  document.getElementById('cal-net').className = 'stat-value ' + (d.net_calories >= 0 ? 'positive' : 'negative');
+  document.getElementById('runway').textContent = (d.runway >= 0 ? '+' : '') + d.runway;
+  document.getElementById('runway').className = 'stat-value ' + (d.runway >= 0 ? 'positive' : 'negative');
   document.getElementById('op210-phase').textContent = d.phase + ' Phase';
   
   // Baseline info
