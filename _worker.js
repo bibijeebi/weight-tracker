@@ -700,7 +700,7 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
     </div>
     <div class="section"><div class="section-title">Weigh-ins</div>
       <div class="table-wrap">
-        <table><thead><tr><th>Time</th><th>Weight</th></tr></thead><tbody id="weights-table"><tr><td colspan="2" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
+        <table><thead><tr><th>Time</th><th>Weight</th><th style="width:100%"></th></tr></thead><tbody id="weights-table"><tr><td colspan="3" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
       </div>
     </div>
   </main>
@@ -845,7 +845,7 @@ function render(d) {
   // Weights table
   if (d.weights && d.weights.length) {
     document.getElementById('weights-table').innerHTML = d.weights.slice(0,5).map(w =>
-      '<tr><td>'+fmtDate(w.logged_at)+'</td><td class="mono">'+w.weight_lbs+' lbs</td></tr>'
+      '<tr><td style="white-space:nowrap">'+fmtDate(w.logged_at)+'</td><td class="mono" style="white-space:nowrap">'+w.weight_lbs+' lbs</td><td></td></tr>'
     ).join('');
   }
 }
