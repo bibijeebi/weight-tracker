@@ -962,13 +962,11 @@ function render(d) {
     document.getElementById('baseline-confidence').textContent = '';
   }
   
-  // Macros with targets
+  // Macros with guidance
   document.getElementById('protein').textContent = d.protein_g + 'g';
-  document.getElementById('protein').style.color = d.protein_g >= d.protein_target ? 'var(--emerald)' : 'var(--text)';
-  document.getElementById('protein-target').textContent = 'target: ' + d.protein_target + 'g';
+  document.getElementById('protein-target').textContent = 'suggested: ' + d.protein_target + 'g';
   document.getElementById('carbs').textContent = d.carbs_g + 'g';
   document.getElementById('fat').textContent = d.fat_g + 'g';
-  document.getElementById('fat').style.color = d.fat_g >= d.fat_target ? 'var(--emerald)' : 'var(--text)';
   document.getElementById('fat-target').textContent = 'min: ' + d.fat_target + 'g';
   
   // VO2
