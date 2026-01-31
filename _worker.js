@@ -285,6 +285,34 @@ curl -X POST https://health.niggerfaggot.club/api/intake \\
           });
         }
 
+        // EXPORT - full database backup
+        if (path === '/api/export' && method === 'GET') {
+          const [weights, intake, exercise, vitals, measurements, config] = await Promise.all([
+            env.DB.prepare('SELECT * FROM weights_v2 ORDER BY logged_at DESC').all(),
+            env.DB.prepare('SELECT * FROM intake_v2 ORDER BY logged_at DESC').all(),
+            env.DB.prepare('SELECT * FROM exercise_v2 ORDER BY logged_at DESC').all(),
+            env.DB.prepare('SELECT * FROM vitals_v2 ORDER BY logged_at DESC').all(),
+            env.DB.prepare('SELECT * FROM measurements_v2 ORDER BY logged_at DESC').all(),
+            env.DB.prepare('SELECT * FROM config_v2').all()
+          ]);
+          const backup = {
+            exported_at: new Date().toISOString(),
+            weights: weights.results,
+            intake: intake.results,
+            exercise: exercise.results,
+            vitals: vitals.results,
+            measurements: measurements.results,
+            config: config.results
+          };
+          return new Response(JSON.stringify(backup, null, 2), {
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Disposition': 'attachment; filename="health-tracker-backup-' + new Date().toISOString().split('T')[0] + '.json"',
+              ...cors
+            }
+          });
+        }
+
         return json({ error: 'Not found' }, 404);
       } catch (e) {
         return json({ error: e.message }, 500);
@@ -564,6 +592,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .vo2-value{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700}
 .vo2-detail{font-size:10px;color:var(--text-muted)}
 .vo2-category{font-size:10px;font-weight:600;padding:4px 10px;border-radius:12px;background:rgba(16,185,129,0.15);white-space:nowrap}
+.export-btn{display:block;text-align:center;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:12px;text-decoration:none;transition:all 0.2s}
+.export-btn:hover{background:var(--card);color:var(--text);border-color:var(--emerald)}
 main{padding:24px;overflow-y:auto;overflow-x:hidden;max-width:100%}
 @media(max-width:900px){main{padding:16px}}
 .section{margin-bottom:24px}
@@ -640,6 +670,7 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       </div>
       <span class="vo2-category" id="vo2-cat">--</span>
     </div>
+    <a href="/api/export" class="export-btn" download>⬇ Export Backup</a>
   </aside>
   <main>
     <div class="section"><div class="section-title">Operation 210 Status</div>
