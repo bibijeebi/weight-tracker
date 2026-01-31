@@ -549,6 +549,18 @@ async function calculateMetrics(db) {
   const fatDelta = fatMass ? round(fatMass - GOAL_FAT, 1) : null;
   const phase = bodyFatPct && bodyFatPct > GOAL_BF_PCT ? 'Cut' : 'Bulk';
 
+  // Phase-aware macro targets
+  // Cut (aggressive): P=1.2g/lb lean, F=0.3g/lb BW
+  // Bulk: P=1g/lb BW, F=0.4g/lb BW
+  const effectiveLean = leanMass || 150;
+  const proteinTarget = phase === 'Cut' 
+    ? Math.round(effectiveLean * 1.2)  // 1.2g per lb lean mass during cut
+    : Math.round(currentWeight * 1.0); // 1g per lb bodyweight during bulk
+  const fatTarget = phase === 'Cut'
+    ? Math.round(currentWeight * 0.3)  // 0.3g per lb BW during cut  
+    : Math.round(currentWeight * 0.4); // 0.4g per lb BW during bulk
+  // Carbs: no hard target, fill remaining calories
+
   return {
     current_weight: currentWeight,
     interpolated_weight: interpolatedWeight,
@@ -588,7 +600,8 @@ async function calculateMetrics(db) {
     baseline_days: round(baselineDays, 1),
     baseline_prorated: Math.round((hoursSinceMidnight / 24) * BASELINE),
     exercise_in_period: totalExerciseInPeriod,
-    protein_target: leanMass ? Math.round(leanMass) : 150,
+    protein_target: proteinTarget,
+    fat_target: fatTarget,
     goal_weight: GOAL_WEIGHT,
     goal_lean: GOAL_LEAN,
     goal_fat: GOAL_FAT,
@@ -827,7 +840,7 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       <div class="macros">
         <div class="macro"><div class="macro-value" id="protein">--</div><div class="macro-label">Protein</div><div class="macro-target" id="protein-target">--</div></div>
         <div class="macro"><div class="macro-value" id="carbs">--</div><div class="macro-label">Carbs</div></div>
-        <div class="macro"><div class="macro-value" id="fat">--</div><div class="macro-label">Fat</div></div>
+        <div class="macro"><div class="macro-value" id="fat">--</div><div class="macro-label">Fat</div><div class="macro-target" id="fat-target">--</div></div>
       </div>
     </div>
     <div class="vo2-card">
@@ -949,12 +962,14 @@ function render(d) {
     document.getElementById('baseline-confidence').textContent = '';
   }
   
-  // Macros with protein target
+  // Macros with targets
   document.getElementById('protein').textContent = d.protein_g + 'g';
   document.getElementById('protein').style.color = d.protein_g >= d.protein_target ? 'var(--emerald)' : 'var(--text)';
   document.getElementById('protein-target').textContent = 'target: ' + d.protein_target + 'g';
   document.getElementById('carbs').textContent = d.carbs_g + 'g';
   document.getElementById('fat').textContent = d.fat_g + 'g';
+  document.getElementById('fat').style.color = d.fat_g >= d.fat_target ? 'var(--emerald)' : 'var(--text)';
+  document.getElementById('fat-target').textContent = 'min: ' + d.fat_target + 'g';
   
   // VO2
   document.getElementById('vo2-val').textContent = d.vo2max ? round(d.vo2max, 1) : '--';
