@@ -877,7 +877,7 @@ function fmtDate(ts) {
   const isToday = d.toLocaleDateString('en-CA',{timeZone:TZ}) === now.toLocaleDateString('en-CA',{timeZone:TZ});
   const time = d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:TZ}).replace(' ','').toLowerCase();
   if (isToday) return time;
-  const date = (d.getMonth()+1)+'/'+d.getDate();
+  const date = d.toLocaleDateString('en-US',{month:'numeric',day:'numeric',timeZone:TZ});
   return date+' '+time;
 }
 function round(n, d=1) { return Math.round(n * Math.pow(10,d)) / Math.pow(10,d); }
@@ -980,7 +980,8 @@ function render(d) {
     document.getElementById('weight-y-axis').innerHTML = '<span>'+max+'</span><span>'+min+'</span>';
     document.getElementById('weight-chart').innerHTML = d.weights.slice().reverse().map(w => {
       const h = 20 + ((w.weight_lbs - min) / range) * 60;
-      const date = new Date(w.logged_at).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'America/New_York'});
+      const ts = w.logged_at.endsWith('Z') ? w.logged_at : w.logged_at.replace(' ','T')+'Z';
+      const date = new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'America/New_York'});
       return '<div class="bar weight" style="height:'+h+'%" data-tip="'+date+': '+w.weight_lbs+' lbs"></div>';
     }).join('');
   }
