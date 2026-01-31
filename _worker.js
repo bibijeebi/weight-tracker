@@ -589,16 +589,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .hero-weight{font-family:'JetBrains Mono',monospace;font-size:48px;font-weight:700;color:var(--emerald);background:linear-gradient(135deg,var(--emerald),var(--cyan));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .hero-sub{font-size:12px;color:var(--text-muted);margin-top:4px}
 .hero-sub strong{color:var(--text-secondary)}
-.weighins-expand{margin-top:12px}
-.weighins-expand-btn{width:100%;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
-.weighins-expand-btn:hover{color:var(--text);border-color:var(--text-muted)}
-.weighins-dropdown{max-height:0;overflow:hidden;transition:max-height 0.3s ease}
-.weighins-dropdown.show{max-height:300px}
-.weighins-list{margin-top:8px;font-size:12px}
-.weighins-item{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)}
-.weighins-item:last-child{border-bottom:none}
-.weighins-time{color:var(--text-muted)}
-.weighins-val{font-family:'JetBrains Mono',monospace;color:var(--text)}
 .velocity-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
 .velocity-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .velocity-label{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)}
@@ -711,10 +701,10 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       <div class="hero-label">Interpolated Weight</div>
       <div class="hero-weight" id="interpolated">---</div>
       <div class="hero-sub">Last weigh-in: <strong id="last-weight">--</strong></div>
-      <div class="weighins-expand">
-        <button class="weighins-expand-btn" onclick="document.getElementById('weighins-dropdown').classList.toggle('show');this.querySelector('.arrow').textContent=document.getElementById('weighins-dropdown').classList.contains('show')?'▲':'▼'"><span class="arrow">▼</span> Recent Weigh-ins</button>
-        <div class="weighins-dropdown" id="weighins-dropdown"></div>
-      </div>
+    </div>
+    <div class="metrics-expand">
+      <button class="metrics-expand-btn" onclick="document.getElementById('weighins-dropdown').classList.toggle('show');this.querySelector('.arrow').textContent=document.getElementById('weighins-dropdown').classList.contains('show')?'▲':'▼'"><span class="arrow">▼</span> Recent Weigh-ins</button>
+      <div class="metrics-expand-content" id="weighins-dropdown"></div>
     </div>
     <div class="velocity-card">
       <div class="velocity-header"><span class="velocity-label">Velocity</span><span class="velocity-toggle" id="vel-toggle">mlbs ↔ lbs</span></div>
@@ -924,11 +914,14 @@ function render(d) {
   
   // Weigh-ins: dropdown in hero card and sidebar
   if (d.weights && d.weights.length) {
-    const weighinsHtml = d.weights.slice(0,5).map(w =>
+    const weighinsDropdownHtml = d.weights.slice(0,5).map(w =>
+      '<div class="metric-row"><span class="metric-name">'+fmtDate(w.logged_at)+'</span><span class="metric-val">'+w.weight_lbs+' lbs</span></div>'
+    ).join('');
+    const weighinsSidebarHtml = d.weights.slice(0,5).map(w =>
       '<div class="sidebar-weighin"><span class="sidebar-weighin-time">'+fmtDate(w.logged_at)+'</span><span class="sidebar-weighin-val">'+w.weight_lbs+' lbs</span></div>'
     ).join('');
-    document.getElementById('weighins-dropdown').innerHTML = '<div class="weighins-list">'+weighinsHtml+'</div>';
-    document.getElementById('sidebar-weighins').innerHTML = weighinsHtml;
+    document.getElementById('weighins-dropdown').innerHTML = weighinsDropdownHtml;
+    document.getElementById('sidebar-weighins').innerHTML = weighinsSidebarHtml;
   }
 }
 
