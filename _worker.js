@@ -602,8 +602,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .metrics-expand{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-top:8px}
 .metrics-expand-btn{width:100%;padding:10px;background:none;border:none;color:var(--text-muted);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
 .metrics-expand-btn:hover{color:var(--text)}
-.metrics-expand-content{display:none;padding:12px;border-top:1px solid var(--border)}
-.metrics-expand-content.show{display:block}
+.metrics-expand-content{max-height:0;overflow:hidden;padding:0 12px;border-top:1px solid var(--border);transition:max-height 0.3s ease,padding 0.3s ease}
+.metrics-expand-content.show{max-height:600px;padding:12px}
 .metric-group{margin-bottom:16px}
 .metric-group:last-child{margin-bottom:0}
 .metric-group-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--cyan);margin-bottom:8px}
@@ -654,14 +654,16 @@ main{padding:24px;overflow-y:auto;overflow-x:hidden;max-width:100%}
 .chart-badge{font-size:10px;padding:4px 8px;background:var(--surface);border-radius:6px;color:var(--text-muted)}
 .chart{display:flex;align-items:flex-end;gap:4px;height:80px}
 .bar{flex:1;border-radius:3px 3px 0 0;min-width:8px;transition:height 0.3s;cursor:pointer;position:relative}
+.bar:hover{opacity:0.8}
+.chart-tooltip{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:11px;color:var(--text);pointer-events:none;z-index:1000;opacity:0;transition:opacity 0.15s;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+.chart-tooltip.visible{opacity:1}
+.chart-tooltip.sticky{pointer-events:auto;border-color:var(--cyan)}
 .bar.surplus{background:linear-gradient(to top,var(--rose),#fb7185)}
 .bar.deficit{background:linear-gradient(to top,var(--emerald),#34d399)}
 .bar.weight{background:linear-gradient(to top,var(--cyan),var(--blue))}
 .bar:hover{opacity:0.8}
 .chart-wrap{display:flex;gap:8px;align-items:stretch}
 .y-axis{display:flex;flex-direction:column;justify-content:space-between;font-size:10px;color:var(--text-muted);padding:2px 0;min-width:36px;text-align:right}
-.chart-tooltip{position:fixed;background:var(--surface);border:1px solid var(--border);padding:6px 10px;border-radius:6px;font-size:11px;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:1000;white-space:nowrap}
-.chart-tooltip.visible{opacity:1}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border)}
 th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);background:var(--surface)}
@@ -768,6 +770,7 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
     </div>
   </main>
 </div>
+<div class="chart-tooltip" id="chart-tooltip"></div>
 <script>
 const CACHE_KEY = 'weight-tracker-cache';
 const CACHE_TTL = 60000; // 1 minute
@@ -940,27 +943,56 @@ async function loadData(forceRefresh = false) {
 
 // Tooltip handling
 const tooltip = document.getElementById('chart-tooltip');
+let stickyBar = null;
+
 document.addEventListener('mouseover', e => {
-  if (e.target.dataset.tip) {
+  if (e.target.dataset.tip && !tooltip.classList.contains('sticky')) {
     tooltip.textContent = e.target.dataset.tip;
     tooltip.classList.add('visible');
   }
 });
 document.addEventListener('mousemove', e => {
-  if (tooltip.classList.contains('visible')) {
+  if (tooltip.classList.contains('visible') && !tooltip.classList.contains('sticky')) {
     tooltip.style.left = (e.clientX + 12) + 'px';
     tooltip.style.top = (e.clientY - 24) + 'px';
   }
 });
 document.addEventListener('mouseout', e => {
-  if (e.target.dataset.tip) tooltip.classList.remove('visible');
+  if (e.target.dataset.tip && !tooltip.classList.contains('sticky')) {
+    tooltip.classList.remove('visible');
+  }
+});
+document.addEventListener('click', e => {
+  if (e.target.dataset.tip) {
+    // Toggle sticky on this bar
+    if (stickyBar === e.target) {
+      tooltip.classList.remove('sticky', 'visible');
+      stickyBar.style.outline = '';
+      stickyBar = null;
+    } else {
+      if (stickyBar) stickyBar.style.outline = '';
+      stickyBar = e.target;
+      stickyBar.style.outline = '2px solid var(--cyan)';
+      tooltip.textContent = e.target.dataset.tip;
+      tooltip.classList.add('visible', 'sticky');
+      const rect = e.target.getBoundingClientRect();
+      tooltip.style.left = (rect.left + rect.width/2) + 'px';
+      tooltip.style.top = (rect.top - 30) + 'px';
+    }
+  } else if (!e.target.closest('.chart-tooltip')) {
+    // Click elsewhere clears sticky
+    if (stickyBar) {
+      stickyBar.style.outline = '';
+      stickyBar = null;
+      tooltip.classList.remove('sticky', 'visible');
+    }
+  }
 });
 
 loadData();
 // Auto-refresh every 60s
 setInterval(() => loadData(true), 60000);
 </script>
-<div class="chart-tooltip" id="chart-tooltip"></div>
 </body></html>`;
 
   return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', ...cors } });
