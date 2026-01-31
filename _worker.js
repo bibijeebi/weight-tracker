@@ -944,7 +944,7 @@ function render(d) {
   // Stats
   document.getElementById('cal-in').textContent = d.calories_in;
   document.getElementById('baseline-prorated').textContent = d.baseline_prorated;
-  document.getElementById('exercise-burn').textContent = d.exercise_burn > 0 ? '+' + d.exercise_burn : '0';
+  document.getElementById('exercise-burn').textContent = d.exercise_burn || 0;
   document.getElementById('cal-net').textContent = (d.net_calories > 0 ? '+' : '') + d.net_calories;
   document.getElementById('runway').textContent = d.runway;
   document.getElementById('runway').className = 'stat-value ' + (d.runway > 0 ? 'positive' : 'negative');
