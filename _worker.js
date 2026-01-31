@@ -341,7 +341,40 @@ async function calculateMetrics(db) {
   const measurements = measurementsRes.results[0];
   const vitals = vitalsRes.results[0];
 
-  const TDEE = parseFloat(config.tdee_base || '2979');
+  // Calculate TDEE from actual data: TDEE = (calories_eaten + weight_lost * 3500) / days
+  let calculatedTDEE = null;
+  let tdeeConfidence = 'low';
+  let tdeeDays = 0;
+  if (weights.length >= 2 && intake.length >= 3) {
+    const oldest = weights[weights.length - 1];
+    const newest = weights[0];
+    const daySpan = (parseUTC(newest.logged_at) - parseUTC(oldest.logged_at)) / 86400000;
+    
+    if (daySpan >= 1) {
+      tdeeDays = daySpan;
+      const weightChange = newest.weight_lbs - oldest.weight_lbs; // negative = lost weight
+      const calorieDeficit = -weightChange * CAL_PER_LB; // positive = deficit
+      
+      // Sum all calories eaten during this period
+      const oldestTime = parseUTC(oldest.logged_at);
+      const totalCaloriesEaten = intake
+        .filter(i => parseUTC(i.logged_at) >= oldestTime)
+        .reduce((sum, i) => sum + (i.calories || 0), 0);
+      
+      // TDEE = (calories eaten + deficit) / days
+      if (totalCaloriesEaten > 0) {
+        calculatedTDEE = Math.round((totalCaloriesEaten + calorieDeficit) / daySpan);
+        
+        // Confidence based on data quality
+        if (daySpan >= 14 && intake.length >= 30) tdeeConfidence = 'high';
+        else if (daySpan >= 7 && intake.length >= 15) tdeeConfidence = 'medium';
+        else tdeeConfidence = 'low';
+      }
+    }
+  }
+
+  const TDEE_BASE = parseFloat(config.tdee_base || '2979');
+  const TDEE = calculatedTDEE && calculatedTDEE > 1500 && calculatedTDEE < 5000 ? calculatedTDEE : TDEE_BASE;
   const GOAL_WEIGHT = parseFloat(config.goal_weight || '210');
   const GOAL_LEAN = parseFloat(config.goal_lean_mass || '172');
   const GOAL_BF_PCT = parseFloat(config.goal_body_fat_pct || '18');
@@ -506,6 +539,12 @@ async function calculateMetrics(db) {
     neck_in: measurements?.neck_in,
     waist_in: measurements?.waist_in,
     tdee: TDEE,
+    tdee_calculated: calculatedTDEE,
+    tdee_base: TDEE_BASE,
+    tdee_confidence: tdeeConfidence,
+    tdee_days: round(tdeeDays, 1),
+    tdee_prorated: Math.round((hoursSinceMidnight / 24) * TDEE),
+    protein_target: leanMass ? Math.round(leanMass) : 150,
     goal_weight: GOAL_WEIGHT,
     goal_lean: GOAL_LEAN,
     goal_fat: GOAL_FAT,
@@ -626,6 +665,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .macro{text-align:center}
 .macro-value{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600}
 .macro-label{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-top:2px}
+.macro-target{font-size:9px;color:var(--text-muted);margin-top:2px}
 .vo2-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative;overflow:hidden}
 .vo2-card::before{content:'';position:absolute;top:0;right:0;width:60px;height:60px;background:radial-gradient(circle at top right,rgba(16,185,129,0.12),transparent 70%);pointer-events:none}
 .vo2-left{display:flex;align-items:center;gap:12px}
@@ -728,12 +768,23 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       </div>
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
-      <div class="stat-row"><span class="stat-label">Calories In</span><span class="stat-value" id="cal-in">--</span></div>
-      <div class="stat-row"><span class="stat-label">Burned</span><span class="stat-value positive" id="cal-burned">--</span></div>
-      <div class="stat-row"><span class="stat-label">Net</span><span class="stat-value" id="cal-net">--</span></div>
-      <div class="stat-row"><span class="stat-label">Runway</span><span class="stat-value positive" id="runway">--</span></div>
+      <div class="stat-row"><span class="stat-label">Eaten Today</span><span class="stat-value" id="cal-in">--</span></div>
+      <div class="stat-row"><span class="stat-label">TDEE (prorated)</span><span class="stat-value" id="tdee-prorated">--</span></div>
+      <div class="stat-row"><span class="stat-label">Exercise</span><span class="stat-value positive" id="exercise-burn">--</span></div>
+      <div class="stat-row"><span class="stat-label">Net Today</span><span class="stat-value" id="cal-net">--</span></div>
+      <div class="stat-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px"><span class="stat-label">Remaining Budget</span><span class="stat-value positive" id="runway">--</span></div>
       <div class="stat-row"><span class="stat-label">Op 210</span><span class="stat-value" id="op210-phase">--</span></div>
-      <div class="macros"><div class="macro"><div class="macro-value" id="protein">--</div><div class="macro-label">Protein</div></div><div class="macro"><div class="macro-value" id="carbs">--</div><div class="macro-label">Carbs</div></div><div class="macro"><div class="macro-value" id="fat">--</div><div class="macro-label">Fat</div></div></div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
+      <div class="stat-row"><span class="stat-label">TDEE</span><span class="stat-value" id="tdee-val">--</span></div>
+      <div class="stat-row"><span class="stat-label" style="font-size:10px;color:var(--text-muted)" id="tdee-source">--</span><span class="stat-value" style="font-size:10px" id="tdee-confidence">--</span></div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
+      <div class="macros">
+        <div class="macro"><div class="macro-value" id="protein">--</div><div class="macro-label">Protein</div><div class="macro-target" id="protein-target">--</div></div>
+        <div class="macro"><div class="macro-value" id="carbs">--</div><div class="macro-label">Carbs</div></div>
+        <div class="macro"><div class="macro-value" id="fat">--</div><div class="macro-label">Fat</div></div>
+      </div>
     </div>
     <div class="vo2-card">
       <div class="vo2-left">
@@ -835,12 +886,29 @@ function render(d) {
   
   // Stats
   document.getElementById('cal-in').textContent = d.calories_in;
-  document.getElementById('cal-burned').textContent = Math.round(d.tdee * d.hours_elapsed / 24 + d.exercise_burn);
+  document.getElementById('tdee-prorated').textContent = d.tdee_prorated;
+  document.getElementById('exercise-burn').textContent = d.exercise_burn > 0 ? '+' + d.exercise_burn : '0';
   document.getElementById('cal-net').textContent = d.net_calories;
   document.getElementById('cal-net').className = 'stat-value ' + (d.net_calories < 0 ? 'negative' : 'positive');
   document.getElementById('runway').textContent = d.runway;
   document.getElementById('op210-phase').innerHTML = '<span style="color:var(--cyan)">' + d.phase + '</span> Phase';
+  
+  // TDEE info
+  document.getElementById('tdee-val').textContent = d.tdee + ' cal/day';
+  if (d.tdee_calculated) {
+    const confColors = { high: 'var(--emerald)', medium: 'var(--amber)', low: 'var(--text-muted)' };
+    document.getElementById('tdee-source').textContent = 'Calculated from ' + d.tdee_days + ' days of data';
+    document.getElementById('tdee-confidence').textContent = d.tdee_confidence + ' confidence';
+    document.getElementById('tdee-confidence').style.color = confColors[d.tdee_confidence];
+  } else {
+    document.getElementById('tdee-source').textContent = 'Using default (need more data)';
+    document.getElementById('tdee-confidence').textContent = '';
+  }
+  
+  // Macros with protein target
   document.getElementById('protein').textContent = d.protein_g + 'g';
+  document.getElementById('protein').style.color = d.protein_g >= d.protein_target ? 'var(--emerald)' : 'var(--text)';
+  document.getElementById('protein-target').textContent = 'target: ' + d.protein_target + 'g';
   document.getElementById('carbs').textContent = d.carbs_g + 'g';
   document.getElementById('fat').textContent = d.fat_g + 'g';
   
