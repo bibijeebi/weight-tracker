@@ -324,22 +324,38 @@ async function calculateMetrics(db) {
   const now = Date.now();
 
   // Velocity & Acceleration - true instantaneous derivatives
+  // Minimum 1 hour between weigh-ins to avoid garbage values
+  const MIN_HOURS = 1;
+  const MIN_DAYS = MIN_HOURS / 24;
+  
   let velocity = 0, velocity7d = 0, acceleration = 0;
   if (weights.length >= 2) {
-    // Velocity: last 2 points
-    const w0 = weights[0], w1 = weights[1];
-    const t01 = (parseUTC(w0.logged_at) - parseUTC(w1.logged_at)) / 86400000; // days
-    if (t01 > 0) velocity = (w0.weight_lbs - w1.weight_lbs) / t01;
+    // Find first valid pair (at least MIN_HOURS apart) for velocity
+    let w0 = null, w1 = null, t01 = 0;
+    for (let i = 0; i < weights.length - 1; i++) {
+      const a = weights[i], b = weights[i + 1];
+      const gap = (parseUTC(a.logged_at) - parseUTC(b.logged_at)) / 86400000;
+      if (gap >= MIN_DAYS) {
+        w0 = a; w1 = b; t01 = gap;
+        break;
+      }
+    }
+    if (w0 && w1 && t01 > 0) {
+      velocity = (w0.weight_lbs - w1.weight_lbs) / t01;
+    }
     
-    // Acceleration: true 2nd derivative from last 3 points
-    if (weights.length >= 3) {
-      const w2 = weights[2];
-      const t12 = (parseUTC(w1.logged_at) - parseUTC(w2.logged_at)) / 86400000;
-      if (t12 > 0) {
-        const v1 = velocity; // w0→w1
-        const v2 = (w1.weight_lbs - w2.weight_lbs) / t12; // w1→w2
-        const avgT = (t01 + t12) / 2;
-        acceleration = (v1 - v2) / avgT; // lbs/day²
+    // Acceleration: find next valid pair after w1
+    if (w1 && weights.length >= 3) {
+      const w1idx = weights.indexOf(w1);
+      for (let i = w1idx; i < weights.length - 1; i++) {
+        const a = weights[i], b = weights[i + 1];
+        const t12 = (parseUTC(a.logged_at) - parseUTC(b.logged_at)) / 86400000;
+        if (t12 >= MIN_DAYS) {
+          const v2 = (a.weight_lbs - b.weight_lbs) / t12;
+          const avgT = (t01 + t12) / 2;
+          acceleration = (velocity - v2) / avgT;
+          break;
+        }
       }
     }
     
