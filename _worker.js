@@ -356,9 +356,9 @@ async function calculateMetrics(db) {
   const MIN_HOURS = 1;
   const MIN_DAYS = MIN_HOURS / 24;
   
-  let velocity = 0, velocity7d = 0, acceleration = 0;
+  let velocity = 0, velocity7d = 0, velocity3d = 0, velocityAll = 0, acceleration = 0, accel3v7 = 0;
   if (weights.length >= 2) {
-    // Find first valid pair (at least MIN_HOURS apart) for velocity
+    // Find first valid pair (at least MIN_HOURS apart) for instantaneous velocity
     let w0 = null, w1 = null, t01 = 0;
     for (let i = 0; i < weights.length - 1; i++) {
       const a = weights[i], b = weights[i + 1];
@@ -387,14 +387,37 @@ async function calculateMetrics(db) {
       }
     }
     
-    // 7-day average velocity (for reference/display)
+    // 7-day average velocity
     const weekAgo = new Date(now - 7 * 86400000);
-    const recentWeights = weights.filter(w => parseUTC(w.logged_at) > weekAgo);
-    if (recentWeights.length >= 2) {
-      const rf = recentWeights[recentWeights.length - 1];
-      const rl = recentWeights[0];
+    const recentWeights7d = weights.filter(w => parseUTC(w.logged_at) > weekAgo);
+    if (recentWeights7d.length >= 2) {
+      const rf = recentWeights7d[recentWeights7d.length - 1];
+      const rl = recentWeights7d[0];
       const rd = (parseUTC(rl.logged_at) - parseUTC(rf.logged_at)) / 86400000;
       if (rd > 0) velocity7d = (rl.weight_lbs - rf.weight_lbs) / rd;
+    }
+    
+    // 3-day average velocity
+    const threeDaysAgo = new Date(now - 3 * 86400000);
+    const recentWeights3d = weights.filter(w => parseUTC(w.logged_at) > threeDaysAgo);
+    if (recentWeights3d.length >= 2) {
+      const rf = recentWeights3d[recentWeights3d.length - 1];
+      const rl = recentWeights3d[0];
+      const rd = (parseUTC(rl.logged_at) - parseUTC(rf.logged_at)) / 86400000;
+      if (rd > 0) velocity3d = (rl.weight_lbs - rf.weight_lbs) / rd;
+    }
+    
+    // All-time average velocity
+    if (weights.length >= 2) {
+      const oldest = weights[weights.length - 1];
+      const newest = weights[0];
+      const totalDays = (parseUTC(newest.logged_at) - parseUTC(oldest.logged_at)) / 86400000;
+      if (totalDays > 0) velocityAll = (newest.weight_lbs - oldest.weight_lbs) / totalDays;
+    }
+    
+    // Acceleration: 3d vs 7d velocity comparison
+    if (velocity3d !== 0 && velocity7d !== 0) {
+      accel3v7 = velocity3d - velocity7d; // positive = recent is faster loss, negative = slowing down
     }
   }
 
@@ -456,7 +479,11 @@ async function calculateMetrics(db) {
     trend_weight: weights.length > 0 ? round(weights.slice(0, 7).reduce((s, w) => s + w.weight_lbs, 0) / Math.min(weights.length, 7), 1) : null,
     velocity_lbs_day: round(velocity7d, 4),
     velocity_7d: round(velocity7d, 4),
+    velocity_3d: round(velocity3d, 4),
+    velocity_inst: round(velocity, 4),
+    velocity_all: round(velocityAll, 4),
     acceleration: round(acceleration, 4),
+    accel_3v7: round(accel3v7, 4),
     mlbs_per_hr: round(velocity7d * 1000 / 24, 1),
     calories_in: caloriesIn,
     exercise_burn: exerciseBurn,
@@ -572,6 +599,20 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .velocity-unit{font-size:14px;color:var(--text-muted)}
 .velocity-sub{display:flex;gap:12px;margin-top:8px;font-size:12px;color:var(--text-muted)}
 .accel-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.metrics-expand{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-top:8px}
+.metrics-expand-btn{width:100%;padding:10px;background:none;border:none;color:var(--text-muted);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.metrics-expand-btn:hover{color:var(--text)}
+.metrics-expand-content{display:none;padding:12px;border-top:1px solid var(--border)}
+.metrics-expand-content.show{display:block}
+.metric-group{margin-bottom:16px}
+.metric-group:last-child{margin-bottom:0}
+.metric-group-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--cyan);margin-bottom:8px}
+.metric-row{display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border)}
+.metric-row:last-child{border-bottom:none}
+.metric-info{flex:1}
+.metric-name{font-size:12px;color:var(--text);font-weight:500}
+.metric-desc{font-size:10px;color:var(--text-muted);margin-top:2px}
+.metric-val{font-family:'JetBrains Mono',monospace;font-size:12px;text-align:right;white-space:nowrap}
 .accel-icon{font-size:18px}
 .accel-label{font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted)}
 .accel-value{font-family:'JetBrains Mono',monospace;font-size:13px}
@@ -658,6 +699,29 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       <div class="velocity-sub"><span id="mlbs-hr">-- mlbs/hr</span><span id="lbs-wk">-- lbs/wk</span></div>
     </div>
     <div class="accel-card"><span class="accel-icon" id="accel-icon">⏸</span><div><div class="accel-label">Acceleration</div><div class="accel-value" id="accel-value">--</div></div></div>
+    <div class="metrics-expand">
+      <button class="metrics-expand-btn" onclick="document.getElementById('metrics-content').classList.toggle('show');this.querySelector('.arrow').textContent=document.getElementById('metrics-content').classList.contains('show')?'▲':'▼'"><span class="arrow">▼</span> More Metrics</button>
+      <div class="metrics-expand-content" id="metrics-content">
+        <div class="metric-group">
+          <div class="metric-group-title">Velocity (rate of weight change)</div>
+          <div class="metric-row"><div class="metric-info"><div class="metric-name">Instantaneous</div><div class="metric-desc">Last 2 weigh-ins (≥1hr apart)</div></div><div class="metric-val" id="m-vel-inst">--</div></div>
+          <div class="metric-row"><div class="metric-info"><div class="metric-name">7-Day Average</div><div class="metric-desc">Oldest to newest over last 7 days (displayed above)</div></div><div class="metric-val" id="m-vel-7d">--</div></div>
+          <div class="metric-row"><div class="metric-info"><div class="metric-name">3-Day Average</div><div class="metric-desc">Short-term trend</div></div><div class="metric-val" id="m-vel-3d">--</div></div>
+          <div class="metric-row"><div class="metric-info"><div class="metric-name">All-Time Average</div><div class="metric-desc">Since first weigh-in</div></div><div class="metric-val" id="m-vel-all">--</div></div>
+        </div>
+        <div class="metric-group">
+          <div class="metric-group-title">Acceleration (is velocity speeding up or slowing down)</div>
+          <div class="metric-row"><div class="metric-info"><div class="metric-name">Instantaneous</div><div class="metric-desc">Last 3 weigh-ins - derivative of velocity (displayed above)</div></div><div class="metric-val" id="m-accel-inst">--</div></div>
+          <div class="metric-row"><div class="metric-info"><div class="metric-name">3d vs 7d Velocity</div><div class="metric-desc">Compare recent vs longer-term velocity</div></div><div class="metric-val" id="m-accel-3v7">--</div></div>
+        </div>
+        <div class="metric-group">
+          <div class="metric-group-title">Interpretation</div>
+          <div class="metric-row"><div class="metric-info"><div class="metric-name">Velocity ↓ negative</div><div class="metric-desc">Losing weight (good for cut)</div></div><div class="metric-val" style="color:var(--emerald)">✓</div></div>
+          <div class="metric-row"><div class="metric-info"><div class="metric-name">Acceleration ↓ negative</div><div class="metric-desc">Weight loss speeding up</div></div><div class="metric-val" style="color:var(--emerald)">✓</div></div>
+          <div class="metric-row"><div class="metric-info"><div class="metric-name">Acceleration ↑ positive</div><div class="metric-desc">Weight loss slowing down (or gaining faster)</div></div><div class="metric-val" style="color:var(--rose)">⚠</div></div>
+        </div>
+      </div>
+    </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
       <div class="stat-row"><span class="stat-label">Calories In</span><span class="stat-value" id="cal-in">--</span></div>
       <div class="stat-row"><span class="stat-label">Burned</span><span class="stat-value positive" id="cal-burned">--</span></div>
@@ -773,6 +837,23 @@ function render(d) {
   document.getElementById('accel-icon').style.color = accelColor;
   document.getElementById('accel-value').textContent = accelText;
   document.getElementById('accel-value').style.color = accelColor;
+  
+  // Expanded metrics
+  const fmtVel = v => (v < 0 ? '↓ ' : v > 0 ? '↑ ' : '') + Math.abs(round(v, 2)) + ' lbs/day';
+  const fmtAcc = v => (v < 0 ? '↓ ' : v > 0 ? '↑ ' : '') + Math.abs(round(v, 3)) + ' lbs/day²';
+  const velColor = v => v < 0 ? 'var(--emerald)' : v > 0 ? 'var(--rose)' : 'var(--text-muted)';
+  document.getElementById('m-vel-inst').textContent = fmtVel(d.velocity_inst);
+  document.getElementById('m-vel-inst').style.color = velColor(d.velocity_inst);
+  document.getElementById('m-vel-7d').textContent = fmtVel(d.velocity_7d);
+  document.getElementById('m-vel-7d').style.color = velColor(d.velocity_7d);
+  document.getElementById('m-vel-3d').textContent = fmtVel(d.velocity_3d);
+  document.getElementById('m-vel-3d').style.color = velColor(d.velocity_3d);
+  document.getElementById('m-vel-all').textContent = fmtVel(d.velocity_all);
+  document.getElementById('m-vel-all').style.color = velColor(d.velocity_all);
+  document.getElementById('m-accel-inst').textContent = fmtAcc(d.acceleration);
+  document.getElementById('m-accel-inst').style.color = velColor(d.acceleration);
+  document.getElementById('m-accel-3v7').textContent = fmtAcc(d.accel_3v7);
+  document.getElementById('m-accel-3v7').style.color = velColor(d.accel_3v7);
   
   // Stats
   document.getElementById('cal-in').textContent = d.calories_in;
