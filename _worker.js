@@ -64,7 +64,7 @@ Always UTC with Z suffix (e.g., 2026-01-27T23:30:00Z). The UI displays in Americ
 
 ### Measurements
 - GET /api/measurements
-- POST /api/measurements - {"neck": 15.5, "waist": 34, "height": 71, "notes": "text", "logged_at?"}
+- POST /api/measurements - {neck_in/neck_cm, waist_in/waist_cm, height_in/height_cm, notes?, logged_at?}
 
 ### Read-Only
 - GET /api/metrics - Computed stats (TDEE, interpolated weight, projections)
@@ -244,9 +244,16 @@ curl -X POST https://health.niggerfaggot.club/api/intake \\
           if (!requireAuth(request)) return json({ error: 'Unauthorized' }, 401);
           const body = await request.json();
           const ts = body.logged_at || new Date().toISOString();
+          
+          // Accept cm or in, convert cm to in if needed
+          const CM_TO_IN = 1 / 2.54;
+          const neck = body.neck_in || body.neck || (body.neck_cm ? body.neck_cm * CM_TO_IN : null);
+          const waist = body.waist_in || body.waist || (body.waist_cm ? body.waist_cm * CM_TO_IN : null);
+          const height = body.height_in || body.height || (body.height_cm ? body.height_cm * CM_TO_IN : 71);
+          
           await env.DB.prepare('INSERT INTO measurements_v2 (neck_in, waist_in, height_in, notes, logged_at) VALUES (?, ?, ?, ?, ?)')
-            .bind(body.neck || null, body.waist || null, body.height || 71, body.notes || null, ts).run();
-          return json({ success: true, logged_at: ts });
+            .bind(neck ? round(neck, 2) : null, waist ? round(waist, 2) : null, round(height, 2), body.notes || null, ts).run();
+          return json({ success: true, logged_at: ts, neck_in: round(neck, 2), waist_in: round(waist, 2), height_in: round(height, 2) });
         }
 
         // METRICS
