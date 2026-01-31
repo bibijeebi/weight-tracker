@@ -65,6 +65,7 @@ Always UTC with Z suffix (e.g., 2026-01-27T23:30:00Z). The UI displays in Americ
 ### Measurements
 - GET /api/measurements
 - POST /api/measurements - {neck_in/neck_cm, waist_in/waist_cm, height_in/height_cm, notes?, logged_at?}
+- DELETE /api/measurements/:id
 
 ### Read-Only
 - GET /api/metrics - Computed stats (TDEE, interpolated weight, projections)
@@ -254,6 +255,12 @@ curl -X POST https://health.niggerfaggot.club/api/intake \\
           await env.DB.prepare('INSERT INTO measurements_v2 (neck_in, waist_in, height_in, notes, logged_at) VALUES (?, ?, ?, ?, ?)')
             .bind(neck ? round(neck, 2) : null, waist ? round(waist, 2) : null, round(height, 2), body.notes || null, ts).run();
           return json({ success: true, logged_at: ts, neck_in: round(neck, 2), waist_in: round(waist, 2), height_in: round(height, 2) });
+        }
+        if (path.match(/^\/api\/measurements\/(\d+)$/) && method === 'DELETE') {
+          if (!requireAuth(request)) return json({ error: 'Unauthorized' }, 401);
+          const id = path.split('/').pop();
+          await env.DB.prepare('DELETE FROM measurements_v2 WHERE id = ?').bind(id).run();
+          return json({ success: true, id });
         }
 
         // METRICS
