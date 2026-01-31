@@ -691,7 +691,7 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
     <div class="hero">
       <div class="hero-label">Interpolated Weight</div>
       <div class="hero-weight" id="interpolated">---</div>
-      <div class="hero-sub">Last weigh-in: <strong id="last-weight">--</strong> · Trend: <span id="trend-weight">--</span></div>
+      <div class="hero-sub">Last weigh-in: <strong id="last-weight">--</strong></div>
     </div>
     <div class="velocity-card">
       <div class="velocity-header"><span class="velocity-label">Velocity</span><span class="velocity-toggle" id="vel-toggle">mlbs ↔ lbs</span></div>
@@ -808,7 +808,6 @@ function render(d) {
   // Hero
   document.getElementById('interpolated').textContent = round(d.interpolated_weight, 2);
   document.getElementById('last-weight').textContent = d.current_weight + ' lbs';
-  document.getElementById('trend-weight').textContent = d.trend_weight;
   
   // Velocity
   renderVelocity(d);
