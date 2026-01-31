@@ -830,7 +830,6 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       <div class="stat-row"><span class="stat-label">Exercise</span><span class="stat-value positive" id="exercise-burn">--</span></div>
       <div class="stat-row"><span class="stat-label">Net Today</span><span class="stat-value" id="cal-net">--</span></div>
       <div class="stat-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px"><span class="stat-label">Remaining Budget</span><span class="stat-value positive" id="runway">--</span></div>
-      <div class="stat-row"><span class="stat-label">Op 210</span><span class="stat-value" id="op210-phase">--</span></div>
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
       <div class="stat-row"><span class="stat-label">Baseline Burn</span><span class="stat-value" id="baseline-val">--</span></div>
@@ -853,7 +852,7 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
     <a href="/api/export" class="export-btn" download>⬇ Export Backup</a>
   </aside>
   <main>
-    <div class="section"><div class="section-title">Operation 210 Status</div>
+    <div class="section"><div class="section-title" style="display:flex;justify-content:space-between;align-items:center">Operation 210 Status<span id="op210-phase" style="font-size:12px;font-weight:400;color:var(--cyan)">--</span></div>
       <div class="op-grid">
         <div class="op-card"><div class="op-card-label">Current</div><div class="op-card-value" id="op-current">--</div><div class="op-card-sub" id="op-current-sub">--</div></div>
         <div class="op-card"><div class="op-card-label">Lean to Gain</div><div class="op-card-value positive" id="op-lean">--</div><div class="op-card-sub" id="op-lean-sub">--</div></div>
@@ -948,14 +947,14 @@ function render(d) {
   document.getElementById('cal-net').textContent = d.net_calories;
   document.getElementById('cal-net').className = 'stat-value ' + (d.net_calories < 0 ? 'negative' : 'positive');
   document.getElementById('runway').textContent = d.runway;
-  document.getElementById('op210-phase').innerHTML = '<span style="color:var(--cyan)">' + d.phase + '</span> Phase';
+  document.getElementById('op210-phase').textContent = d.phase + ' Phase';
   
   // Baseline info
   document.getElementById('baseline-val').textContent = d.baseline + ' cal/day';
   if (d.baseline_calculated) {
     const confColors = { high: 'var(--emerald)', medium: 'var(--amber)', low: 'var(--text-muted)' };
     document.getElementById('baseline-source').textContent = 'From ' + d.baseline_days + ' days (excl. ' + d.exercise_in_period + ' cal exercise)';
-    document.getElementById('baseline-confidence').textContent = d.baseline_confidence;
+    document.getElementById('baseline-confidence').textContent = '• ' + d.baseline_confidence + ' conf';
     document.getElementById('baseline-confidence').style.color = confColors[d.baseline_confidence];
   } else {
     document.getElementById('baseline-source').textContent = 'Using default (need more data)';
