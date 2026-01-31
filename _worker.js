@@ -625,8 +625,9 @@ table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border)}
 th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);background:var(--surface)}
 .table-wrap{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.table-wrap.fit{width:fit-content}
-.table-wrap.fit table{width:auto}
+.table-wrap.fit{width:fit-content;overflow-x:visible}
+.table-wrap.fit table{width:auto;min-width:0}
+.table-wrap.fit th,.table-wrap.fit td{padding:10px 14px;white-space:nowrap}
 .table-wrap table{min-width:520px}
 @media(max-width:900px){th,td{padding:8px 6px;font-size:12px}th{font-size:10px}td:first-child{white-space:nowrap;font-size:11px}}
 .mono{font-family:'JetBrains Mono',monospace}
