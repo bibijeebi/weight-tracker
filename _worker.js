@@ -757,14 +757,14 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       <div class="chart-card"><div class="chart-header"><span class="chart-title">Weight History</span><span class="chart-badge" id="weight-badge">--</span></div><div class="chart-wrap"><div class="y-axis" id="weight-y-axis"></div><div class="chart" id="weight-chart"></div></div></div>
       <div class="chart-card"><div class="chart-header"><span class="chart-title">Daily Net</span><span class="chart-badge">14 days</span></div><div class="chart-wrap"><div class="y-axis" id="net-y-axis"></div><div class="chart" id="net-chart"></div></div></div>
     </div>
-    <div class="section"><div class="section-title">Recent Intake</div>
-      <div class="table-wrap">
-        <table><thead><tr><th>Time</th><th>Cal</th><th>P</th><th>C</th><th>F</th><th>Description</th></tr></thead><tbody id="intake-table"><tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
-      </div>
-    </div>
     <div class="section"><div class="section-title">Recent Exercise</div>
       <div class="table-wrap">
         <table><thead><tr><th>Time</th><th>Type</th><th>Min</th><th>Cal</th><th>Dist</th><th>Max HR</th><th>Notes</th></tr></thead><tbody id="exercise-table"><tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
+      </div>
+    </div>
+    <div class="section"><div class="section-title">Recent Intake</div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Time</th><th>Cal</th><th>P</th><th>C</th><th>F</th><th>Description</th></tr></thead><tbody id="intake-table"><tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
       </div>
     </div>
   </main>
