@@ -698,7 +698,6 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       <div class="velocity-main"><span class="velocity-arrow" id="vel-arrow">↓</span><span class="velocity-value" id="vel-value">--</span><span class="velocity-unit" id="vel-unit">lbs/day</span></div>
       <div class="velocity-sub"><span id="mlbs-hr">-- mlbs/hr</span><span id="lbs-wk">-- lbs/wk</span></div>
     </div>
-    <div class="accel-card"><span class="accel-icon" id="accel-icon">⏸</span><div><div class="accel-label">Acceleration</div><div class="accel-value" id="accel-value">--</div></div></div>
     <div class="metrics-expand">
       <button class="metrics-expand-btn" onclick="document.getElementById('metrics-content').classList.toggle('show');this.querySelector('.arrow').textContent=document.getElementById('metrics-content').classList.contains('show')?'▲':'▼'"><span class="arrow">▼</span> More Metrics</button>
       <div class="metrics-expand-content" id="metrics-content">
@@ -815,28 +814,6 @@ function render(d) {
   renderVelocity(d);
   document.getElementById('mlbs-hr').textContent = round(d.mlbs_per_hr, 0) + ' mlbs/hr';
   document.getElementById('lbs-wk').textContent = round(d.velocity_lbs_day * 7, 2) + ' lbs/wk';
-  
-  // Acceleration - negative means losing faster (good during cut), positive means slowing down
-  const accelVal = round(d.acceleration, 4);
-  const accelAbs = Math.abs(accelVal);
-  let accelText, accelColor, accelIcon;
-  if (accelVal < -0.0001) {
-    accelText = '↓ ' + accelAbs + ' lbs/day²';
-    accelColor = 'var(--emerald)';
-    accelIcon = '▶▶';
-  } else if (accelVal > 0.0001) {
-    accelText = '↑ ' + accelAbs + ' lbs/day²';
-    accelColor = 'var(--rose)';
-    accelIcon = '⏸';
-  } else {
-    accelText = '→ 0 lbs/day²';
-    accelColor = 'var(--text-muted)';
-    accelIcon = '→';
-  }
-  document.getElementById('accel-icon').textContent = accelIcon;
-  document.getElementById('accel-icon').style.color = accelColor;
-  document.getElementById('accel-value').textContent = accelText;
-  document.getElementById('accel-value').style.color = accelColor;
   
   // Expanded metrics
   const fmtVel = v => (v < 0 ? '↓ ' : v > 0 ? '↑ ' : '') + Math.abs(round(v, 2)) + ' lbs/day';
