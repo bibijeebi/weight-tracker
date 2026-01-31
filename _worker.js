@@ -323,13 +323,15 @@ async function calculateMetrics(db) {
   const currentWeight = latest?.weight_lbs || 200;
   const now = Date.now();
 
-  // Velocity
+  // Velocity - instantaneous (last 2 weigh-ins)
   let velocity = 0, velocity7d = 0, acceleration = 0;
   if (weights.length >= 2) {
-    const first = weights[weights.length - 1];
-    const last = weights[0];
-    const daysDiff = (parseUTC(last.logged_at) - parseUTC(first.logged_at)) / 86400000;
-    if (daysDiff > 0) velocity = (last.weight_lbs - first.weight_lbs) / daysDiff;
+    // Instantaneous: derivative from last 2 points
+    const w0 = weights[0], w1 = weights[1];
+    const hoursDiff = (parseUTC(w0.logged_at) - parseUTC(w1.logged_at)) / 3600000;
+    if (hoursDiff > 0) velocity = (w0.weight_lbs - w1.weight_lbs) / (hoursDiff / 24);
+    
+    // 7-day average for comparison
     const weekAgo = new Date(now - 7 * 86400000);
     const recentWeights = weights.filter(w => parseUTC(w.logged_at) > weekAgo);
     if (recentWeights.length >= 2) {
@@ -338,6 +340,7 @@ async function calculateMetrics(db) {
       const rd = (parseUTC(rl.logged_at) - parseUTC(rf.logged_at)) / 86400000;
       if (rd > 0) velocity7d = (rl.weight_lbs - rf.weight_lbs) / rd;
     }
+    // Acceleration: how much faster/slower than 7d avg
     acceleration = velocity - velocity7d;
   }
 
@@ -488,10 +491,11 @@ async function serveDashboard(env) {
 <style>
 :root{--bg:#0a0a0c;--surface:#111114;--card:#16161a;--border:#222228;--border-light:#2a2a32;--text:#f0f0f5;--text-secondary:#a0a0b0;--text-muted:#606070;--emerald:#10b981;--emerald-glow:rgba(16,185,129,0.3);--rose:#f43f5e;--rose-glow:rgba(244,63,94,0.3);--cyan:#22d3ee;--amber:#fbbf24;--violet:#a78bfa;--blue:#3b82f6}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
-.layout{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
+html{overflow-x:hidden}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden}
+.layout{display:grid;grid-template-columns:280px 1fr;min-height:100vh;overflow-x:hidden;max-width:100vw}
 @media(max-width:900px){.layout{grid-template-columns:1fr}.sidebar{border-right:none;border-bottom:1px solid var(--border);padding:16px}}
-.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:20px;display:flex;flex-direction:column;gap:16px}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:20px;display:flex;flex-direction:column;gap:16px;overflow-x:hidden}
 .header{display:flex;align-items:center;justify-content:space-between}
 .brand{display:flex;align-items:center;gap:10px}
 .brand-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--emerald),var(--cyan));border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px}
@@ -534,7 +538,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .vo2-value{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700}
 .vo2-detail{font-size:10px;color:var(--text-muted)}
 .vo2-category{font-size:10px;font-weight:600;padding:4px 10px;border-radius:12px;background:rgba(16,185,129,0.15);white-space:nowrap}
-main{padding:24px;overflow-y:auto}
+main{padding:24px;overflow-y:auto;overflow-x:hidden;max-width:100%}
 @media(max-width:900px){main{padding:16px}}
 .section{margin-bottom:24px}
 .section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:12px}
@@ -635,8 +639,8 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       </div>
     </div>
     <div class="section"><div class="section-title">Weigh-ins</div>
-      <div class="table-wrap" style="width:fit-content">
-        <table style="width:auto"><thead><tr><th>ID</th><th>Weight</th><th>Time</th></tr></thead><tbody id="weights-table"><tr><td colspan="3" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
+      <div class="table-wrap">
+        <table><thead><tr><th>ID</th><th>Weight</th><th>Time</th></tr></thead><tbody id="weights-table"><tr><td colspan="3" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody></table>
       </div>
     </div>
   </main>
