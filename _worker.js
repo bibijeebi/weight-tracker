@@ -341,40 +341,69 @@ async function calculateMetrics(db) {
   const measurements = measurementsRes.results[0];
   const vitals = vitalsRes.results[0];
 
-  // Calculate TDEE from actual data: TDEE = (calories_eaten + weight_lost * 3500) / days
-  let calculatedTDEE = null;
-  let tdeeConfidence = 'low';
-  let tdeeDays = 0;
+  // Calculate BASELINE daily burn from actual data (excluding logged exercise)
+  // Formula: Baseline = (calories_eaten + energy_from_weight_loss - exercise_logged) / days
+  // 
+  // With body comp data, we can be more precise:
+  // - Fat tissue: ~3500 cal/lb
+  // - Lean tissue: ~700 cal/lb (mostly muscle)
+  // - Water/glycogen: ~0 cal/lb
+  
+  let calculatedBaseline = null;
+  let baselineConfidence = 'low';
+  let baselineDays = 0;
+  let derivedCalPerLb = null;
+  let totalExerciseInPeriod = 0;
+  
   if (weights.length >= 2 && intake.length >= 3) {
     const oldest = weights[weights.length - 1];
     const newest = weights[0];
     const daySpan = (parseUTC(newest.logged_at) - parseUTC(oldest.logged_at)) / 86400000;
     
     if (daySpan >= 1) {
-      tdeeDays = daySpan;
-      const weightChange = newest.weight_lbs - oldest.weight_lbs; // negative = lost weight
-      const calorieDeficit = -weightChange * CAL_PER_LB; // positive = deficit
-      
-      // Sum all calories eaten during this period
+      baselineDays = daySpan;
       const oldestTime = parseUTC(oldest.logged_at);
+      const newestTime = parseUTC(newest.logged_at);
+      
+      // Total calories eaten in period
       const totalCaloriesEaten = intake
-        .filter(i => parseUTC(i.logged_at) >= oldestTime)
+        .filter(i => {
+          const t = parseUTC(i.logged_at);
+          return t >= oldestTime && t <= newestTime;
+        })
         .reduce((sum, i) => sum + (i.calories || 0), 0);
       
-      // TDEE = (calories eaten + deficit) / days
+      // Total exercise in period
+      totalExerciseInPeriod = exercise
+        .filter(e => {
+          const t = parseUTC(e.logged_at);
+          return t >= oldestTime && t <= newestTime;
+        })
+        .reduce((sum, e) => sum + (e.calories_burned || 0), 0);
+      
+      // Weight/composition change
+      const weightLost = oldest.weight_lbs - newest.weight_lbs; // positive = lost weight
+      
+      // If we have body composition data, use it for more accurate energy calculation
+      // For now, use 3500 cal/lb as default (mostly fat loss at higher BF%)
+      // TODO: When we have BF% at multiple points, calculate actual fat vs lean loss
+      const calPerLb = 3500; // Could be derived from data with enough varied periods
+      const energyFromWeightLoss = weightLost * calPerLb;
+      
+      // Baseline = (eaten + energy_released - exercise) / days
       if (totalCaloriesEaten > 0) {
-        calculatedTDEE = Math.round((totalCaloriesEaten + calorieDeficit) / daySpan);
+        calculatedBaseline = Math.round((totalCaloriesEaten + energyFromWeightLoss - totalExerciseInPeriod) / daySpan);
         
         // Confidence based on data quality
-        if (daySpan >= 14 && intake.length >= 30) tdeeConfidence = 'high';
-        else if (daySpan >= 7 && intake.length >= 15) tdeeConfidence = 'medium';
-        else tdeeConfidence = 'low';
+        if (daySpan >= 14 && intake.length >= 30) baselineConfidence = 'high';
+        else if (daySpan >= 7 && intake.length >= 15) baselineConfidence = 'medium';
+        else baselineConfidence = 'low';
       }
     }
   }
 
-  const TDEE_BASE = parseFloat(config.tdee_base || '2979');
-  const TDEE = calculatedTDEE && calculatedTDEE > 1500 && calculatedTDEE < 5000 ? calculatedTDEE : TDEE_BASE;
+  const BASELINE_DEFAULT = parseFloat(config.tdee_base || '2400');
+  const BASELINE = calculatedBaseline && calculatedBaseline > 1200 && calculatedBaseline < 4000 ? calculatedBaseline : BASELINE_DEFAULT;
   const GOAL_WEIGHT = parseFloat(config.goal_weight || '210');
   const GOAL_LEAN = parseFloat(config.goal_lean_mass || '172');
   const GOAL_BF_PCT = parseFloat(config.goal_body_fat_pct || '18');
@@ -473,11 +502,11 @@ async function calculateMetrics(db) {
   const exerciseBurn = todayExercise.reduce((s, e) => s + (e.calories_burned || 0), 0);
 
   const hoursSinceMidnight = (now - todayStartUTC.getTime()) / 3600000;
-  const tdeeBurnedSoFar = Math.round((hoursSinceMidnight / 24) * TDEE);
-  const totalBurned = tdeeBurnedSoFar + exerciseBurn;
+  const baselineBurnedSoFar = Math.round((hoursSinceMidnight / 24) * BASELINE);
+  const totalBurned = baselineBurnedSoFar + exerciseBurn;
   const netCalories = caloriesIn - totalBurned;
   const interpolatedWeight = round(currentWeight + (netCalories / CAL_PER_LB), 2);
-  const runway = TDEE - caloriesIn + exerciseBurn;
+  const runway = BASELINE - caloriesIn + exerciseBurn;
 
   // Body composition
   let bodyFatPct = null, leanMass = null, fatMass = null;
@@ -538,12 +567,13 @@ async function calculateMetrics(db) {
     max_hr: maxHR,
     neck_in: measurements?.neck_in,
     waist_in: measurements?.waist_in,
-    tdee: TDEE,
-    tdee_calculated: calculatedTDEE,
-    tdee_base: TDEE_BASE,
-    tdee_confidence: tdeeConfidence,
-    tdee_days: round(tdeeDays, 1),
-    tdee_prorated: Math.round((hoursSinceMidnight / 24) * TDEE),
+    baseline: BASELINE,
+    baseline_calculated: calculatedBaseline,
+    baseline_default: BASELINE_DEFAULT,
+    baseline_confidence: baselineConfidence,
+    baseline_days: round(baselineDays, 1),
+    baseline_prorated: Math.round((hoursSinceMidnight / 24) * BASELINE),
+    exercise_in_period: totalExerciseInPeriod,
     protein_target: leanMass ? Math.round(leanMass) : 150,
     goal_weight: GOAL_WEIGHT,
     goal_lean: GOAL_LEAN,
@@ -553,11 +583,11 @@ async function calculateMetrics(db) {
     weights: weights,
     intake: intake.slice(0, 20),
     exercise: exercise.slice(0, 10),
-    daily_net: calculateDailyNet(intake, exercise, TDEE),
+    daily_net: calculateDailyNet(intake, exercise, BASELINE),
   };
 }
 
-function calculateDailyNet(intake, exercise, tdee) {
+function calculateDailyNet(intake, exercise, baseline) {
   const days = {};
   const tz = 'America/New_York';
   
@@ -585,7 +615,7 @@ function calculateDailyNet(intake, exercise, tdee) {
     const dateStr = d.toLocaleDateString('en-CA', { timeZone: tz });
     const dayData = days[dateStr];
     if (!dayData) continue; // Skip days with no data
-    const net = dayData.calories_in - tdee - dayData.exercise_burn;
+    const net = dayData.calories_in - baseline - dayData.exercise_burn;
     result.push({ date: dateStr, net: Math.round(net), calories_in: dayData.calories_in, exercise_burn: dayData.exercise_burn });
   }
   return result;
@@ -769,15 +799,15 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
       <div class="stat-row"><span class="stat-label">Eaten Today</span><span class="stat-value" id="cal-in">--</span></div>
-      <div class="stat-row"><span class="stat-label">TDEE (prorated)</span><span class="stat-value" id="tdee-prorated">--</span></div>
+      <div class="stat-row"><span class="stat-label">Baseline (prorated)</span><span class="stat-value" id="baseline-prorated">--</span></div>
       <div class="stat-row"><span class="stat-label">Exercise</span><span class="stat-value positive" id="exercise-burn">--</span></div>
       <div class="stat-row"><span class="stat-label">Net Today</span><span class="stat-value" id="cal-net">--</span></div>
       <div class="stat-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px"><span class="stat-label">Remaining Budget</span><span class="stat-value positive" id="runway">--</span></div>
       <div class="stat-row"><span class="stat-label">Op 210</span><span class="stat-value" id="op210-phase">--</span></div>
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
-      <div class="stat-row"><span class="stat-label">TDEE</span><span class="stat-value" id="tdee-val">--</span></div>
-      <div class="stat-row"><span class="stat-label" style="font-size:10px;color:var(--text-muted)" id="tdee-source">--</span><span class="stat-value" style="font-size:10px" id="tdee-confidence">--</span></div>
+      <div class="stat-row"><span class="stat-label">Baseline Burn</span><span class="stat-value" id="baseline-val">--</span></div>
+      <div class="stat-row"><span class="stat-label" style="font-size:10px;color:var(--text-muted)" id="baseline-source">--</span><span class="stat-value" style="font-size:10px" id="baseline-confidence">--</span></div>
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
       <div class="macros">
@@ -886,23 +916,23 @@ function render(d) {
   
   // Stats
   document.getElementById('cal-in').textContent = d.calories_in;
-  document.getElementById('tdee-prorated').textContent = d.tdee_prorated;
+  document.getElementById('baseline-prorated').textContent = d.baseline_prorated;
   document.getElementById('exercise-burn').textContent = d.exercise_burn > 0 ? '+' + d.exercise_burn : '0';
   document.getElementById('cal-net').textContent = d.net_calories;
   document.getElementById('cal-net').className = 'stat-value ' + (d.net_calories < 0 ? 'negative' : 'positive');
   document.getElementById('runway').textContent = d.runway;
   document.getElementById('op210-phase').innerHTML = '<span style="color:var(--cyan)">' + d.phase + '</span> Phase';
   
-  // TDEE info
-  document.getElementById('tdee-val').textContent = d.tdee + ' cal/day';
-  if (d.tdee_calculated) {
+  // Baseline info
+  document.getElementById('baseline-val').textContent = d.baseline + ' cal/day';
+  if (d.baseline_calculated) {
     const confColors = { high: 'var(--emerald)', medium: 'var(--amber)', low: 'var(--text-muted)' };
-    document.getElementById('tdee-source').textContent = 'Calculated from ' + d.tdee_days + ' days of data';
-    document.getElementById('tdee-confidence').textContent = d.tdee_confidence + ' confidence';
-    document.getElementById('tdee-confidence').style.color = confColors[d.tdee_confidence];
+    document.getElementById('baseline-source').textContent = 'From ' + d.baseline_days + ' days (excl. ' + d.exercise_in_period + ' cal exercise)';
+    document.getElementById('baseline-confidence').textContent = d.baseline_confidence;
+    document.getElementById('baseline-confidence').style.color = confColors[d.baseline_confidence];
   } else {
-    document.getElementById('tdee-source').textContent = 'Using default (need more data)';
-    document.getElementById('tdee-confidence').textContent = '';
+    document.getElementById('baseline-source').textContent = 'Using default (need more data)';
+    document.getElementById('baseline-confidence').textContent = '';
   }
   
   // Macros with protein target
