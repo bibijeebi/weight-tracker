@@ -830,7 +830,6 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       <div class="stat-row"><span class="stat-label">Baseline (prorated)</span><span class="stat-value" id="baseline-prorated">--</span></div>
       <div class="stat-row"><span class="stat-label">Exercise</span><span class="stat-value" id="exercise-burn">--</span></div>
       <div class="stat-row"><span class="stat-label">Net Today</span><span class="stat-value" id="cal-net">--</span></div>
-      <div class="stat-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px"><span class="stat-label">Remaining Budget</span><span class="stat-value" id="runway">--</span></div>
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
       <div class="stat-row"><span class="stat-label">Baseline Burn</span><span class="stat-value" id="baseline-val">--</span></div>
@@ -946,9 +945,11 @@ function render(d) {
   document.getElementById('baseline-prorated').textContent = d.baseline_prorated;
   document.getElementById('exercise-burn').textContent = d.exercise_burn || 0;
   document.getElementById('cal-net').textContent = (d.net_calories >= 0 ? '+' : '') + d.net_calories;
-  document.getElementById('cal-net').className = 'stat-value ' + (d.net_calories >= 0 ? 'positive' : 'negative');
-  document.getElementById('runway').textContent = (d.runway >= 0 ? '+' : '') + d.runway;
-  document.getElementById('runway').className = 'stat-value ' + (d.runway >= 0 ? 'positive' : 'negative');
+  // Phase-aware coloring: Cut wants deficit (negative=good), Bulk wants moderate surplus (0-750=good, <0 or >750=bad)
+  const netIsGood = d.phase === 'Cut' 
+    ? d.net_calories < 0 
+    : (d.net_calories >= 0 && d.net_calories <= 750);
+  document.getElementById('cal-net').className = 'stat-value ' + (netIsGood ? 'positive' : 'negative');
   document.getElementById('op210-phase').textContent = d.phase + ' Phase';
   
   // Baseline info
