@@ -828,9 +828,9 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:8px">Calories</div>
       <div class="stat-row"><span class="stat-label">Eaten Today</span><span class="stat-value" id="cal-in">--</span></div>
       <div class="stat-row"><span class="stat-label">Baseline (prorated)</span><span class="stat-value" id="baseline-prorated">--</span></div>
-      <div class="stat-row"><span class="stat-label">Exercise</span><span class="stat-value positive" id="exercise-burn">--</span></div>
+      <div class="stat-row"><span class="stat-label">Exercise</span><span class="stat-value" id="exercise-burn">--</span></div>
       <div class="stat-row"><span class="stat-label">Net Today</span><span class="stat-value" id="cal-net">--</span></div>
-      <div class="stat-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px"><span class="stat-label">Remaining Budget</span><span class="stat-value positive" id="runway">--</span></div>
+      <div class="stat-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px"><span class="stat-label">Remaining Budget</span><span class="stat-value" id="runway">--</span></div>
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
       <div class="stat-row"><span class="stat-label">Baseline Burn</span><span class="stat-value" id="baseline-val">--</span></div>
@@ -945,9 +945,9 @@ function render(d) {
   document.getElementById('cal-in').textContent = d.calories_in;
   document.getElementById('baseline-prorated').textContent = d.baseline_prorated;
   document.getElementById('exercise-burn').textContent = d.exercise_burn > 0 ? '+' + d.exercise_burn : '0';
-  document.getElementById('cal-net').textContent = d.net_calories;
-  document.getElementById('cal-net').className = 'stat-value ' + (d.net_calories < 0 ? 'negative' : 'positive');
+  document.getElementById('cal-net').textContent = (d.net_calories > 0 ? '+' : '') + d.net_calories;
   document.getElementById('runway').textContent = d.runway;
+  document.getElementById('runway').className = 'stat-value ' + (d.runway > 0 ? 'positive' : 'negative');
   document.getElementById('op210-phase').textContent = d.phase + ' Phase';
   
   // Baseline info
@@ -1120,5 +1120,6 @@ setInterval(() => loadData(true), 60000);
 
   return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', ...cors } });
 }
+
 
 
