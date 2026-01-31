@@ -833,7 +833,7 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
       <div class="stat-row"><span class="stat-label">Baseline Burn</span><span class="stat-value" id="baseline-val">--</span></div>
-      <div class="stat-row"><span class="stat-label" style="font-size:10px;color:var(--text-muted)" id="baseline-source">--</span><span class="stat-value" style="font-size:10px" id="baseline-confidence">--</span></div>
+      <div class="stat-row"><span class="stat-label" style="font-size:10px;color:var(--text-muted)" id="baseline-source">--</span></div>
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
       <div class="macros">
@@ -953,12 +953,9 @@ function render(d) {
   document.getElementById('baseline-val').textContent = d.baseline + ' cal/day';
   if (d.baseline_calculated) {
     const confColors = { high: 'var(--emerald)', medium: 'var(--amber)', low: 'var(--text-muted)' };
-    document.getElementById('baseline-source').textContent = 'From ' + d.baseline_days + ' days (excl. ' + d.exercise_in_period + ' cal exercise)';
-    document.getElementById('baseline-confidence').textContent = '• ' + d.baseline_confidence + ' conf';
-    document.getElementById('baseline-confidence').style.color = confColors[d.baseline_confidence];
+    document.getElementById('baseline-source').innerHTML = d.baseline_days + 'd data · ' + d.exercise_in_period + ' cal exercise · <span style="color:'+confColors[d.baseline_confidence]+'">'+d.baseline_confidence+'</span>';
   } else {
     document.getElementById('baseline-source').textContent = 'Using default (need more data)';
-    document.getElementById('baseline-confidence').textContent = '';
   }
   
   // Macros with guidance
