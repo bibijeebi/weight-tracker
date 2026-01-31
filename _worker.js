@@ -323,15 +323,27 @@ async function calculateMetrics(db) {
   const currentWeight = latest?.weight_lbs || 200;
   const now = Date.now();
 
-  // Velocity - instantaneous (last 2 weigh-ins)
+  // Velocity & Acceleration - true instantaneous derivatives
   let velocity = 0, velocity7d = 0, acceleration = 0;
   if (weights.length >= 2) {
-    // Instantaneous: derivative from last 2 points
+    // Velocity: last 2 points
     const w0 = weights[0], w1 = weights[1];
-    const hoursDiff = (parseUTC(w0.logged_at) - parseUTC(w1.logged_at)) / 3600000;
-    if (hoursDiff > 0) velocity = (w0.weight_lbs - w1.weight_lbs) / (hoursDiff / 24);
+    const t01 = (parseUTC(w0.logged_at) - parseUTC(w1.logged_at)) / 86400000; // days
+    if (t01 > 0) velocity = (w0.weight_lbs - w1.weight_lbs) / t01;
     
-    // 7-day average for comparison
+    // Acceleration: true 2nd derivative from last 3 points
+    if (weights.length >= 3) {
+      const w2 = weights[2];
+      const t12 = (parseUTC(w1.logged_at) - parseUTC(w2.logged_at)) / 86400000;
+      if (t12 > 0) {
+        const v1 = velocity; // w0→w1
+        const v2 = (w1.weight_lbs - w2.weight_lbs) / t12; // w1→w2
+        const avgT = (t01 + t12) / 2;
+        acceleration = (v1 - v2) / avgT; // lbs/day²
+      }
+    }
+    
+    // 7-day average velocity (for reference/display)
     const weekAgo = new Date(now - 7 * 86400000);
     const recentWeights = weights.filter(w => parseUTC(w.logged_at) > weekAgo);
     if (recentWeights.length >= 2) {
@@ -340,8 +352,6 @@ async function calculateMetrics(db) {
       const rd = (parseUTC(rl.logged_at) - parseUTC(rf.logged_at)) / 86400000;
       if (rd > 0) velocity7d = (rl.weight_lbs - rf.weight_lbs) / rd;
     }
-    // Acceleration: how much faster/slower than 7d avg
-    acceleration = velocity - velocity7d;
   }
 
   // Today's calories (Eastern Time with DST detection)
@@ -598,7 +608,7 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em
       <div class="velocity-main"><span class="velocity-arrow" id="vel-arrow">↓</span><span class="velocity-value" id="vel-value">--</span><span class="velocity-unit" id="vel-unit">lbs/day</span></div>
       <div class="velocity-sub"><span id="mlbs-hr">-- mlbs/hr</span><span id="lbs-wk">-- lbs/wk</span></div>
     </div>
-    <div class="accel-card"><span class="accel-icon" id="accel-icon">⏸</span><div><div class="accel-label">Acceleration vs 7d avg</div><div class="accel-value" id="accel-value">--</div></div></div>
+    <div class="accel-card"><span class="accel-icon" id="accel-icon">⏸</span><div><div class="accel-label">Acceleration</div><div class="accel-value" id="accel-value">--</div></div></div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
       <div class="stat-row"><span class="stat-label">Calories In</span><span class="stat-value" id="cal-in">--</span></div>
       <div class="stat-row"><span class="stat-label">Burned</span><span class="stat-value positive" id="cal-burned">--</span></div>
@@ -692,12 +702,27 @@ function render(d) {
   document.getElementById('mlbs-hr').textContent = round(d.mlbs_per_hr, 0) + ' mlbs/hr';
   document.getElementById('lbs-wk').textContent = round(d.velocity_lbs_day * 7, 2) + ' lbs/wk';
   
-  // Acceleration
-  const accelGood = d.acceleration <= 0;
-  document.getElementById('accel-icon').textContent = accelGood ? '▶▶' : '⏸';
-  document.getElementById('accel-icon').style.color = accelGood ? 'var(--emerald)' : 'var(--amber)';
-  document.getElementById('accel-value').textContent = (accelGood ? 'Faster: ' : 'Slower: ') + Math.abs(round(d.acceleration, 4)) + ' lbs/day²';
-  document.getElementById('accel-value').style.color = accelGood ? 'var(--emerald)' : 'var(--rose)';
+  // Acceleration - negative means losing faster (good during cut), positive means slowing down
+  const accelVal = round(d.acceleration, 4);
+  const accelAbs = Math.abs(accelVal);
+  let accelText, accelColor, accelIcon;
+  if (accelVal < -0.0001) {
+    accelText = '↓ ' + accelAbs + ' lbs/day²';
+    accelColor = 'var(--emerald)';
+    accelIcon = '▶▶';
+  } else if (accelVal > 0.0001) {
+    accelText = '↑ ' + accelAbs + ' lbs/day²';
+    accelColor = 'var(--rose)';
+    accelIcon = '⏸';
+  } else {
+    accelText = '→ 0 lbs/day²';
+    accelColor = 'var(--text-muted)';
+    accelIcon = '→';
+  }
+  document.getElementById('accel-icon').textContent = accelIcon;
+  document.getElementById('accel-icon').style.color = accelColor;
+  document.getElementById('accel-value').textContent = accelText;
+  document.getElementById('accel-value').style.color = accelColor;
   
   // Stats
   document.getElementById('cal-in').textContent = d.calories_in;
