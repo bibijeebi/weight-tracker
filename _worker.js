@@ -1022,7 +1022,7 @@ function render(d) {
   // Exercise table
   if (d.exercise && d.exercise.length) {
     document.getElementById('exercise-table').innerHTML = d.exercise.slice(0,5).map(e =>
-      '<tr><td>'+fmtDate(e.logged_at)+'</td><td>'+e.type+'</td><td class="mono">'+(e.duration_min||'-')+'</td><td class="mono">'+(e.calories_burned||'-')+'</td><td class="mono">'+(e.distance_miles?e.distance_miles.toFixed(2)+'mi':'-')+'</td><td class="mono">'+(e.max_hr||'-')+'</td><td class="desc">'+(e.notes||'-')+'</td></tr>'
+      '<tr><td>'+fmtDate(e.logged_at)+'</td><td>'+e.type+'</td><td class="mono">'+(e.duration_min||'-')+'</td><td class="mono">'+(e.calories_burned||'-')+'</td><td class="mono">'+(e.distance_miles?e.distance_miles.toFixed(2)+'mi':'-')+'</td><td class="mono">'+(e.max_hr||'-')+'</td><td>'+(e.notes||'-')+'</td></tr>'
     ).join('');
   }
   
